@@ -1,0 +1,80 @@
+[project]
+name = "extract-python"
+version = "0.1.0"
+description = "Structured content extraction"
+authors = [
+    { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
+]
+readme = "README.md"
+requires-python = "~=3.11"
+dependencies = [
+    "icij-common>=0.6.0",
+    "tesserocr>=2.8.0",
+]
+
+[tool.uv]
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux'",
+]
+
+[tool.setuptools]
+packages = ["extract_python"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/ICIJ/extract-python"
+Repository = "https://github.com/ICIJ/extract-python"
+Issues = "https://github.com/ICIJ/extract-python/issues"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/nightly/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+torchvision = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+pytorch-triton-xpu = [
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux'" },
+]
+
+[project.optional-dependencies]
+docling = [
+    "docling>=2.26.0",
+    "docling[tesserocr]>=2.26.0; 'tesseract' in extra",
+    "docling[rapidocr]>=2.26.0; 'rapidocr' in extra",
+    "docling[ocrmac]>=2.26.0; sys_platform == 'darwin'",
+    "pytorch-triton-xpu>=3.2.0; sys_platform == 'linux'",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+]
+
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+markers = [
+    "integration: integration test",
+]
