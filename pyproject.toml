@@ -3,28 +3,39 @@ name = "extract-python"
 version = "0.1.0"
 description = "Structured content extraction"
 authors = [
-    { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
+  { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
 ]
 readme = "README.md"
 requires-python = "~=3.11"
 dependencies = [
-    "icij-common>=0.6.0",
-    "tesserocr>=2.8.0",
+  "icij-worker[amqp,postgres]~=0.17.21",
+  "pydantic-settings~=2.8.1"
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["icij_worker"]
+
+[project.optional-dependencies]
+docling = [
+  "docling~=2.26.0",
+  "docling[tesserocr]~=2.26; 'tesseract' in extra",
+  "docling[rapidocr]~=2.26; 'rapidocr' in extra",
+  "docling[ocrmac]~=2.26; sys_platform == 'darwin'",
+  "pytorch-triton-xpu~=3.2; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "torch>=2.6,<2.7.0.dev20250205",
+  "torchvision~=0.21",
 ]
 
 [tool.uv]
 environments = [
-    "sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "sys_platform == 'linux'",
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "sys_platform == 'linux'",
 ]
-
-[tool.setuptools]
-packages = ["extract_python"]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.25.3",
+  "pytest~=8.3.5",
+  "pytest-asyncio~=0.25.3",
 ]
 
 [project.urls]
@@ -38,8 +49,8 @@ url = "https://download.pytorch.org/whl/nightly/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/nightly/cu126"
 explicit = true
 
 [[tool.uv.index]]
@@ -50,31 +61,31 @@ explicit = true
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 torchvision = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 pytorch-triton-xpu = [
-  { index = "pytorch-xpu", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 
-[project.optional-dependencies]
-docling = [
-    "docling>=2.26.0",
-    "docling[tesserocr]>=2.26.0; 'tesseract' in extra",
-    "docling[rapidocr]>=2.26.0; 'rapidocr' in extra",
-    "docling[ocrmac]>=2.26.0; sys_platform == 'darwin'",
-    "pytorch-triton-xpu>=3.2.0; sys_platform == 'linux'",
-    "torch>=2.6.0",
-    "torchvision>=0.21.0",
-]
-
-
+[project.entry-points."icij_worker.APP_HOOK"]
+extract_app = "extract_python.app:app"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 markers = [
-    "integration: integration test",
+  "integration: integration test",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

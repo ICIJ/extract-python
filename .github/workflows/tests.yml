@@ -23,6 +23,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install tesseract an
+        run: | 
+          sudo apt-get install -y tesseract-ocr \
+              tesseract-ocr-eng \
+              tesseract-ocr-fra \
+              tesseract-ocr-deu \
+              tesseract-ocr-spa \
+              tesseract-ocr-lat \
+              tesseract-ocr-jpn \
+              libtesseract-dev \
+              libleptonica-dev \
+              pkg-config
+          echo "TESSDATA_PREFIX=$(sudo dpkg -L tesseract-ocr-eng | grep tessdata$)" >> $GITHUB_ENV
       - name: Run tests
         run: uv run --dev --extra docling --frozen pytest -vvv --cache-clear --show-capture=all -r A tests
 

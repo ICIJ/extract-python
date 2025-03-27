@@ -1,20 +1,24 @@
 from __future__ import annotations
 
+import logging
+import os
 import traceback
 import uuid
+from abc import ABC
 from enum import Enum
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Self
+from typing import Annotated, Any, NoReturn, Self
 
 from icij_common.pydantic_utils import (
     icij_config,
     merge_configs,
-    no_enum_config,
+    no_enum_values_config,
     safe_copy,
 )
-from pydantic import BaseModel
+from pydantic import AfterValidator, TypeAdapter
+from pydantic import BaseModel as _BaseModel
 
 try:
     from docling.datamodel.base_models import ConversionStatus, ErrorItem, InputFormat
@@ -27,7 +31,12 @@ except ImportError:
     FormatOption = None
     DocumentStream = None
 
-base_config = merge_configs(icij_config(), no_enum_config())
+logger = logging.getLogger(__name__)
+base_config = merge_configs(icij_config(), no_enum_values_config())
+
+
+class BaseModel(_BaseModel):
+    model_config = base_config
 
 
 class SupportedExt(str, Enum):
@@ -38,7 +47,7 @@ class SupportedExt(str, Enum):
 
 
 class OutputFormat(str, Enum):
-    MARKDOWN = "markdown"
+    MARKDOWN = ".md"
 
 
 class Status(str, Enum):
@@ -64,8 +73,6 @@ class Status(str, Enum):
 
 
 class Error(BaseModel):
-    model_config = base_config
-
     id: str
     title: str
     detail: str
@@ -102,8 +109,6 @@ def _id_title(title: str) -> str:
 
 
 class InputDoc(BaseModel):
-    model_config = base_config
-
     ext: SupportedExt
     path: Path
     content: bytes | None = None
@@ -131,12 +136,12 @@ class InputDoc(BaseModel):
 PageIndexes = list[int]
 
 
-class MarkdownDoc(BaseModel):
-    model_config = base_config
-
+class DocContent(BaseModel):
     content: str
     pages: PageIndexes = []
 
+
+class MarkdownDoc(DocContent):
     @classmethod
     def from_docling(cls, res: Any, **kwargs) -> Self:
         from docling.datamodel.document import ConversionResult
@@ -164,16 +169,21 @@ class MarkdownDoc(BaseModel):
         return {ConversionStatus.SUCCESS, ConversionStatus.PARTIAL_SUCCESS}
 
 
-class Result(BaseModel):
-    model_config = base_config
+def _input_should_not_have_content(value: InputDoc) -> InputDoc:
+    if value.content is not None:
+        raise ValueError(f"response input can't have content, but got {value}")
+    return value
 
+
+class _BaseResult(BaseModel, ABC):
     input: InputDoc
-
     status: Status
     errors: list[Error] = []
 
+
+class Result(_BaseResult):
     # TODO: use generics here when we add more output formats
-    result: MarkdownDoc | None
+    result: DocContent | None
 
     @classmethod
     def from_docling(
@@ -194,3 +204,74 @@ class Result(BaseModel):
         errors = [Error.from_docling(e) for e in res.errors]
         input_doc = input_document.without_content()
         return cls(input=input_doc, status=status, errors=errors, result=result)
+
+    def to_response(self, output_path: Path) -> ResponseResult:
+        return ResponseResult(
+            input=self.input.without_content(),
+            status=self.status,
+            errors=self.errors,
+            output_path=output_path,
+        )
+
+
+class ResponseResult(_BaseResult):
+    input: Annotated[InputDoc, AfterValidator(func=_input_should_not_have_content)]
+    output_path: Path
+
+
+class ExtractionResponse(BaseModel):
+    results: list[ResponseResult]
+
+
+_INPUT_DOCS_ADAPTER = TypeAdapter(list[InputDoc | Path])
+
+
+def parse_extraction_request(
+    docs: str | list[dict | str], *, data_dir: Path
+) -> list[InputDoc]:
+    if isinstance(docs, str):
+        logger.debug("exploring files in %s", data_dir.absolute())
+        docs_dir = Path(data_dir) / docs
+        docs = _as_input_docs(docs_dir)
+        msg = "found %s"
+        if len(docs) > 10:
+            msg = msg + ", and more..."
+        logger.debug("found %s", docs[:10])
+        return docs
+    docs = _INPUT_DOCS_ADAPTER.validate_python(docs)
+    if not docs:
+        return []
+    if isinstance(docs[0], Path):
+        doc_meta = []
+        unknown_exts = []
+        for doc in docs:
+            _, ext = os.path.splitext(str(doc))
+            if not ext:
+                unknown_exts.append(doc)
+            else:
+                doc_meta.append(InputDoc.from_path(path=doc.relative_to(data_dir)))
+        if unknown_exts:
+            raise ValueError(f"found files with unknown extensions {unknown_exts}")
+        return doc_meta
+    return docs
+
+
+def _raise(err: OSError) -> NoReturn:
+    raise err
+
+
+def _as_input_docs(
+    docs_dir: Path, *, supported_ext: set[str] | None = None
+) -> list[InputDoc]:
+    if supported_ext is None:
+        supported_ext = {v.value for v in SupportedExt}
+    docs = []
+    for root, _, files in os.walk(docs_dir, onerror=_raise):
+        root = Path(root)  # noqa: PLW2901
+        for f in files:
+            ext = Path(f).suffix
+            if not ext or ext not in supported_ext:
+                continue
+            docs.append(InputDoc.from_path(path=root / f))
+    docs = sorted(docs, key=lambda x: x.path)
+    return docs
