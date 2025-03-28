@@ -3,26 +3,24 @@ from typing import cast
 
 import pytest
 
-from extract_python.core.docling_ import DoclingPipeline, DoclingPipelineConfig
-from extract_python.core.pipeline import Pipeline
+from extract_python.core import MarkerPipeline, MarkerPipelineConfig, Pipeline
 from extract_python.objects import InputDoc, OutputFormat, Status
 from tests import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config() -> DoclingPipelineConfig:
-    # TODO: for testing add a lightweight configuration
-    return DoclingPipelineConfig()
+def config() -> MarkerPipelineConfig:
+    return MarkerPipelineConfig()
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: DoclingPipelineConfig) -> DoclingPipeline:
-    return cast(DoclingPipeline, Pipeline.from_config(config=config))
+def pipeline(config: MarkerPipelineConfig) -> MarkerPipeline:
+    return cast(MarkerPipeline, Pipeline.from_config(config=config))
 
 
 @pytest.mark.integration
-async def test_docling_pdf_to_markdown(
-    pipeline: DoclingPipeline, docs: list[InputDoc], tmpdir: Path
+async def test_marker_pdf_to_markdown(
+    pipeline: MarkerPipeline, docs: list[InputDoc], tmpdir: Path
 ) -> None:
     # Given
     output_path = Path(tmpdir)

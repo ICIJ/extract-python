@@ -16,12 +16,13 @@ dependencies = [
 include = ["icij_worker"]
 
 [project.optional-dependencies]
-docling = [
-  "docling~=2.26.0",
+cpu = [
+  "docling~=2.26",
   "docling[tesserocr]~=2.26; 'tesseract' in extra",
   "docling[rapidocr]~=2.26; 'rapidocr' in extra",
   "docling[ocrmac]~=2.26; sys_platform == 'darwin'",
   "pytorch-triton-xpu~=3.2; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "marker-pdf>=1.6.2",
   "torch>=2.6,<2.7.0.dev20250205",
   "torchvision~=0.21",
 ]

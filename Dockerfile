@@ -33,13 +33,13 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 RUN --mount=type=cache,target=~/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync -v --frozen --no-editable --no-sources --no-install-project --no-install-package opencv-python --extra docling
+    uv sync -v --frozen --no-editable --no-sources --no-install-project --no-install-package opencv-python --extra cpu
 RUN uv run --no-sync docling-tools models download -o ~/.cache/docling/models
 # Then copy code
 ADD uv.lock pyproject.toml README.md ./
 ADD extract_python ./extract_python/
 # Then install service
-RUN uv sync -v --frozen --no-editable --no-sources --no-install-package opencv-python --extra docling
+RUN uv sync -v --frozen --no-editable --no-sources --no-install-package opencv-python --extra cpu
 
 RUN rm -rf ~/.cache/pip $(uv cache dir)
 

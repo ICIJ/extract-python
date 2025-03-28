@@ -23,12 +23,10 @@ from pydantic import BaseModel as _BaseModel
 try:
     from docling.datamodel.base_models import ConversionStatus, ErrorItem, InputFormat
     from docling.datamodel.document import InputDocument
-    from docling.document_converter import FormatOption
     from docling_core.types.io import DocumentStream
 except ImportError:
     ConversionStatus, ErrorItem, InputFormat = None, None, None
     InputDocument = None
-    FormatOption = None
     DocumentStream = None
 
 logger = logging.getLogger(__name__)
@@ -48,6 +46,17 @@ class SupportedExt(str, Enum):
 
 class OutputFormat(str, Enum):
     MARKDOWN = ".md"
+
+    @property
+    def suffix(self) -> str:
+        return self.value[1:]
+
+    def to_marker(self) -> str:
+        match self:
+            case OutputFormat.MARKDOWN:
+                return "markdown"
+            case _:
+                raise ValueError(f"{self} is unsupported by marker")
 
 
 class Status(str, Enum):
@@ -136,30 +145,12 @@ class InputDoc(BaseModel):
 PageIndexes = list[int]
 
 
-class DocContent(BaseModel):
-    content: str
+class ConversionOutput(BaseModel):
+    path: Path
     pages: PageIndexes = []
 
 
-class MarkdownDoc(DocContent):
-    @classmethod
-    def from_docling(cls, res: Any, **kwargs) -> Self:
-        from docling.datamodel.document import ConversionResult
-        from docling_core.types.doc import ImageRefMode
-
-        if not isinstance(res, ConversionResult):
-            raise TypeError(f"expected {ConversionResult.__name__} but got {type(res)}")
-        if res.status not in cls._valid_conversion_statuses:
-            raise ValueError("can't convert unsuccessful result")
-        md = ""
-        pages = [0]
-        for page_i in range(len(res.pages)):
-            md += "\n" + res.document.export_to_markdown(
-                page_no=page_i + 1, image_mode=ImageRefMode.REFERENCED, **kwargs
-            )
-            pages.append(len(md))
-        return cls(content=md, pages=pages)
-
+class MarkdownDoc(ConversionOutput):
     @classmethod
     @property
     @cache
@@ -182,35 +173,15 @@ class _BaseResult(BaseModel, ABC):
 
 
 class Result(_BaseResult):
-    # TODO: use generics here when we add more output formats
-    result: DocContent | None
+    # TODO: we could also use generics here when we add more output formats
+    output: ConversionOutput | None
 
-    @classmethod
-    def from_docling(
-        cls, res: Any, input_document: InputDoc, output_format: OutputFormat, **kwargs
-    ) -> Self:
-        from docling.datamodel.document import ConversionResult
-
-        if not isinstance(res, ConversionResult):
-            raise TypeError(f"expected {ConversionResult.__name__} but got {type(res)}")
-
-        result = None
-        status = Status.from_docling(res.status)
-        if status.allows_conversion:
-            if output_format is OutputFormat.MARKDOWN:
-                result = MarkdownDoc.from_docling(res, **kwargs)
-            else:
-                raise NotImplementedError(f"unsupported output format {output_format}")
-        errors = [Error.from_docling(e) for e in res.errors]
-        input_doc = input_document.without_content()
-        return cls(input=input_doc, status=status, errors=errors, result=result)
-
-    def to_response(self, output_path: Path) -> ResponseResult:
+    def to_response(self) -> ResponseResult:
         return ResponseResult(
             input=self.input.without_content(),
             status=self.status,
             errors=self.errors,
-            output_path=output_path,
+            output_path=self.output.path,
         )
 
 

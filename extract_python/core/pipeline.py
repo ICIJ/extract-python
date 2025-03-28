@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Iterable
 from enum import Enum
+from pathlib import Path
 from typing import ClassVar
 
 from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_values_config
@@ -14,6 +15,7 @@ StructuredContent = str
 
 class PipelineType(str, Enum):
     DOCLING = "docling"
+    MARKER = "marker"
 
 
 class PipelineConfig(RegistrableConfig, ABC):
@@ -27,5 +29,5 @@ class PipelineConfig(RegistrableConfig, ABC):
 class Pipeline(RegistrableFromConfig, ABC):
     @abstractmethod
     async def extract_content(
-        self, docs: Iterable[InputDoc], output_format: OutputFormat
+        self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]: ...

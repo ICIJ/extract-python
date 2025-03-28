@@ -8,7 +8,16 @@ from icij_worker import AMQPWorkerConfig
 
 from extract_python.app import app
 from extract_python.config import AppConfig
+from extract_python.objects import InputDoc
 from tests import TEST_DATA_DIR
+
+
+@pytest.fixture(scope="session")
+def docs() -> list[InputDoc]:
+    doc_paths = ("scanned.pdf", "computer_generated.pdf")
+    doc_paths = (TEST_DATA_DIR / p for p in doc_paths)
+    docs = [InputDoc.from_path(p) for p in doc_paths]
+    return docs
 
 
 @pytest.fixture(scope="session")
