@@ -1,6 +1,8 @@
 import logging
 
 from icij_worker import AsyncApp
+from icij_worker.typing_ import RateProgress
+from icij_worker.utils.progress import to_raw_progress
 
 from extract_python.constants import CPU_GROUP, EXTRACT_CONTENT_TASK
 from extract_python.objects import (
@@ -21,6 +23,7 @@ async def extract_content(
     pipeline_config: dict,
     output_path: str,
     output_format: str = OutputFormat.MARKDOWN.value,
+    progress: RateProgress | None = None,
 ) -> dict:
     from extract_python.core import PipelineConfig
     from extract_python.core.pipeline import Pipeline
@@ -29,6 +32,8 @@ async def extract_content(
     data_dir = app_config.data_dir
     work_dir = app_config.work_dir
     docs = parse_extraction_request(docs, data_dir=data_dir)
+    if progress is not None:
+        progress = to_raw_progress(progress, max_progress=len(docs))
     pipeline_config = PipelineConfig.model_validate(pipeline_config)
     output_format = OutputFormat(output_format)
     output_path = work_dir / output_path
@@ -37,14 +42,10 @@ async def extract_content(
     results = list()
     pipeline = Pipeline.from_config(pipeline_config)
     # TODO: potentially add caching to avoid preprocessing the same file
-    async for result in pipeline.extract_content(docs, output_format=output_format):
-        # TODO: improve output serialization here... We don't want the results to be
-        #  saved on the task broker, at the same time using the disk might not be the
-        #  best option...
-        rel_path = result.input.path.relative_to(data_dir).with_suffix(
-            output_format.value
-        )
-        file_path = output_path / rel_path
-        file_path.write_text(result.result.content)
-        results.append(result.to_response(rel_path))
+    n_processed = 0
+    async for result in pipeline.extract_content(docs, output_format, output_path):
+        results.append(result.to_response())
+        if progress is not None:
+            n_processed += 1
+            await progress(n_processed)
     return ExtractionResponse(results=results).model_dump()

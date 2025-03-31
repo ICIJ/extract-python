@@ -32,7 +32,9 @@ async def test_extract_content(
     res = ExtractionResponse.model_validate(response)
     assert not any(r.errors for r in res.results)
     assert all(r.status is Status.SUCCESS for r in res.results)
-    for r in res.results:
-        expected_path = test_app_config.work_dir / output_path / r.output_path
-        assert expected_path.exists()
-        assert expected_path.name.endswith(output_format)
+    expected_paths = ["computer_generated_pdf", "scanned_pdf"]
+    expected_paths = [Path(p) for p in expected_paths]
+    for expected_path, r in zip(expected_paths, res.results):
+        assert r.output_path == expected_path
+        expected_dir = test_app_config.work_dir / output_path / r.output_path
+        assert expected_dir.exists()

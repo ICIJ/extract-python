@@ -1,5 +1,6 @@
 from collections.abc import Iterable, Iterator
 from itertools import tee
+from pathlib import PurePath
 from typing import Callable, TypeVar
 
 R = TypeVar("R")
@@ -18,3 +19,11 @@ def all_subclasses(cls: type[T]) -> set[type[T]]:
     return set(cls.__subclasses__()).union(
         [s for c in cls.__subclasses__() for s in all_subclasses(c)]
     )
+
+
+def path_to_artifacts_dirname(path: PurePath, sep: str = "_") -> str:
+    dirname = f"{path.name[: -len(path.suffix)]}"
+    ext = path.suffix
+    if ext:
+        dirname += sep + ext[1:]
+    return dirname

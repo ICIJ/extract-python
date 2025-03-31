@@ -1,4 +1,13 @@
-from .docling_ import DoclingPipelineConfig
-from .pipeline import PipelineConfig
+from .docling_ import DoclingPipeline, DoclingPipelineConfig
+from .marker_ import MarkerPipeline, MarkerPipelineConfig
+from .pipeline import Pipeline, PipelineConfig, PipelineType
 
-__all__ = ["DoclingPipelineConfig", "PipelineConfig"]
+__all__ = [
+    "DoclingPipeline",
+    "DoclingPipelineConfig",
+    "MarkerPipeline",
+    "MarkerPipelineConfig",
+    "Pipeline",
+    "PipelineType",
+    "PipelineConfig",
+]
