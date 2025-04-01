@@ -1,7 +1,11 @@
+import os
+import shutil
 import tempfile
-from collections.abc import AsyncGenerator, Iterable, Iterator
+from collections.abc import AsyncGenerator, Generator, Iterable, Iterator
+from contextlib import contextmanager
+from functools import cache
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, Self, TypeVar
 
 from docling.backend.abstract_backend import AbstractDocumentBackend
 from docling.datamodel.base_models import InputFormat
@@ -17,6 +21,7 @@ from docling.models.factories import get_ocr_factory
 from docling.pipeline.base_pipeline import BasePipeline
 from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
+from icij_common.pydantic_utils import safe_copy
 from icij_common.registrable import FromConfig
 from pydantic import Field, model_validator
 
@@ -41,6 +46,8 @@ DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
 
 class _PdfPipelineOptions(PdfPipelineOptions):
+    generate_picture_images: bool = Field(default=True, frozen=True)
+
     @model_validator(mode="before")
     @classmethod
     def validate_ocr_options(cls, data: Any) -> Any:
@@ -61,15 +68,9 @@ OptionsByPipeline = list[
 ]
 
 
-def _default_format_options() -> OptionsByPipeline:
-    pipeline_options = _PdfPipelineOptions(
-        ocr_options=EasyOcrOptions(),
-        artifacts_path=str(DEFAULT_ARTIFACTS_PATH),
-    )
-    return [
-        ("pdf", pipeline_options),
-        ("vlm", VlmPipelineOptions(artifacts_path=str(DEFAULT_ARTIFACTS_PATH))),
-    ]
+def _default_pipeline_options() -> OptionsByPipeline:
+    pipeline_options = _PdfPipelineOptions(ocr_options=EasyOcrOptions())
+    return [("pdf", pipeline_options), ("vlm", VlmPipelineOptions())]
 
 
 class DoclingFormatOption(BaseModel):
@@ -100,6 +101,18 @@ class DoclingFormatOption(BaseModel):
         )
 
 
+@cache
+def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
+    supported_fmt = {InputFormat.PDF}
+    return {
+        fmt: DoclingFormatOption(
+            pipeline_cls=opt.pipeline_cls.__name__, backend_cls=opt.backend.__name__
+        )
+        for fmt, opt in DocumentConverter().format_to_options.items()
+        if fmt in supported_fmt
+    }
+
+
 T = TypeVar("T")
 
 
@@ -113,9 +126,24 @@ def _find_subcls(cls: type[T], name: str) -> type[T]:
 @PipelineConfig.register()
 class DoclingPipelineConfig(PipelineConfig):
     pipeline: PipelineType = Field(frozen=True, default=PipelineType.DOCLING)
+    test: bool = False
 
-    pipeline_options: OptionsByPipeline = Field(default_factory=_default_format_options)
-    format_options: dict[InputFormat, DoclingFormatOption] = dict()
+    pipeline_options: OptionsByPipeline = Field(
+        default_factory=_default_pipeline_options
+    )
+    format_options: dict[InputFormat, DoclingFormatOption] = Field(
+        default_factory=_default_format_options
+    )
+
+    @model_validator(mode="after")
+    def test_default_artifact_dir(self) -> Self:
+        if not self.test:
+            for i, (k, v) in enumerate(self.pipeline_options):
+                self.pipeline_options[i] = (
+                    k,
+                    safe_copy(v, update={"artifacts_path": DEFAULT_ARTIFACTS_PATH}),
+                )
+        return self
 
     def to_format_options(self) -> dict[InputFormat, FormatOption]:
         pipeline_options = dict(self.pipeline_options)
@@ -180,32 +208,43 @@ def _to_markdown_doc(
     md_dir_name = path_to_artifacts_dirname(res.input.file)
     md_dir = output_path / md_dir_name
     # Let's avoid issue of duplicated input file names flattened top level
-    md_dir.mkdir(parents=True, exist_ok=False)
-    md_path = (output_path / md_dir_name).with_suffix(OutputFormat.MARKDOWN.value)
+    md_filename = md_dir_name + OutputFormat.MARKDOWN
     total_length = 0
     n_pages = len(res.pages)
-    with (
-        md_path.open("w", encoding="utf-8") as f,
-        tempfile.TemporaryDirectory() as tmpdir,
-    ):
-        tmp_dir = Path(tmpdir)
-        pages = [0]
-        for page_i in range(n_pages):
-            page_path = tmp_dir / f"{page_i}.md"
-            res.document.save_as_markdown(
-                page_path,
-                artifacts_dir=tmp_dir,
-                page_no=page_i + 1,
-                image_mode=ImageRefMode.REFERENCED,
-                **kwargs,
-            )
-            content = page_path.read_text()
-            if page_i > 0:
-                content += "\n"
-            if page_i < n_pages - 1:
-                content += page_sep
-            total_length += len(content)
-            pages.append(total_length)
-            f.write(content)
-            f.flush()
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
+        tmp_dir = Path(td)
+        page_path = Path("page.md")
+        # We do a chdir to bypass a Docling bug which only allows to maintain relative
+        # image ref when saving the markdown to a relative path
+        with (tmp_dir / md_filename).open("w") as f, chdir(tmp_dir):
+            pages = [0]
+            for page_i in range(n_pages):
+                res.document.save_as_markdown(
+                    page_path,
+                    page_no=page_i + 1,
+                    image_mode=ImageRefMode.REFERENCED,
+                    **kwargs,
+                )
+                content = page_path.read_text()
+                if page_i > 0:
+                    content += "\n"
+                if page_i < n_pages - 1:
+                    content += page_sep
+                total_length += len(content)
+                pages.append(total_length)
+                f.write(content)
+                f.flush()
+                page_path.unlink()
+        shutil.move(tmp_dir, md_dir)
     return MarkdownDoc(path=Path(md_dir_name), pages=pages)
+
+
+@contextmanager
+def chdir(path: Path) -> Generator[None, None, None]:
+    cwd = Path.cwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(cwd)

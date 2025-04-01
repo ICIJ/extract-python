@@ -12,7 +12,7 @@ from tests import TEST_DATA_DIR
 @pytest.fixture(scope="session")
 def config() -> DoclingPipelineConfig:
     # TODO: for testing add a lightweight configuration
-    return DoclingPipelineConfig()
+    return DoclingPipelineConfig(test=True)
 
 
 @pytest.fixture(scope="session")
@@ -35,11 +35,16 @@ async def test_docling_pdf_to_markdown(
     expected_output_paths = [Path(p) for p in expected_output_paths]
     output_paths = [r.output.path for r in res]
     assert output_paths == expected_output_paths
+    for p in expected_output_paths:
+        assert (output_path / p).exists()
+        assert (output_path / p).is_dir()
+        assert (output_path / p / p.name).with_suffix(".md").exists()
+        assert any((output_path / p).glob("**/*.png"))
     assert all(r.output.pages for r in res)
     assert not any(r.errors for r in res)
     input_path = [r.input.path for r in res]
-    expected_path = [
+    expected_input_path = [
         TEST_DATA_DIR / "scanned.pdf",
         TEST_DATA_DIR / "computer_generated.pdf",
     ]
-    assert input_path == expected_path
+    assert input_path == expected_input_path

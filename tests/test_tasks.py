@@ -14,6 +14,7 @@ async def test_extract_content(
     docs = "."
     pipeline_config = {
         "pipeline": "docling",
+        "test": True,
         "pipeline_options": [
             ["pdf", {"ocr_options": {"kind": "tesserocr", "lang": ["auto"]}}]
         ],

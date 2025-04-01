@@ -105,7 +105,9 @@ def _to_markdown_doc(
     page_sep = MarkdownRenderer.page_separator
     content = content.split(page_sep)
     n_pages = len(content)
-    md_path = (output_path / md_dir_name).with_suffix(OutputFormat.MARKDOWN.value)
+    md_path = (output_path / md_dir_name / md_dir_name).with_suffix(
+        OutputFormat.MARKDOWN.value
+    )
     total_length = 0
     with md_path.open("w", encoding="utf-8") as f:
         pages = [0]

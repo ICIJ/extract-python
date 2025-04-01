@@ -33,6 +33,11 @@ async def test_marker_pdf_to_markdown(
     expected_output_paths = [Path(p) for p in expected_output_paths]
     output_paths = [r.output.path for r in res]
     assert output_paths == expected_output_paths
+    for p in expected_output_paths:
+        assert (output_path / p).exists()
+        assert (output_path / p).is_dir()
+        assert (output_path / p / p.name).with_suffix(".md").exists()
+        assert any((output_path / p).glob("*.jpeg"))
     assert all(r.output.pages for r in res)
     assert not any(r.errors for r in res)
     input_path = [r.input.path for r in res]
