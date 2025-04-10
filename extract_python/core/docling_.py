@@ -43,7 +43,7 @@ from extract_python.utils import (
     path_to_artifacts_dirname,
 )
 
-DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
+DOCKING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
 
 class _PdfPipelineOptions(PdfPipelineOptions):
@@ -144,7 +144,9 @@ class DoclingPipelineConfig(PipelineConfig):
             for i, (k, v) in enumerate(self.pipeline_options):
                 self.pipeline_options[i] = (
                     k,
-                    safe_copy(v, update={"artifacts_path": DEFAULT_ARTIFACTS_PATH}),
+                    safe_copy(
+                        v, update={"artifacts_path": DOCKING_DEFAULT_ARTIFACTS_PATH}
+                    ),
                 )
         return self
 

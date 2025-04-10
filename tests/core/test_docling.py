@@ -3,8 +3,7 @@ from typing import cast
 
 import pytest
 
-from extract_python.core.docling_ import DoclingPipeline, DoclingPipelineConfig
-from extract_python.core.pipeline import Pipeline
+from extract_python.core import DoclingPipeline, DoclingPipelineConfig, Pipeline
 from extract_python.objects import InputDoc, OutputFormat, Status
 from tests import TEST_DATA_DIR
 
