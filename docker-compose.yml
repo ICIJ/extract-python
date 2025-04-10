@@ -89,3 +89,19 @@ services:
       - type: bind
         source: ./data
         target: /usr/src/data
+
+  extract-worker-miner-u:
+    depends_on:
+      http-service:
+        condition: service_healthy
+    build:
+      context: .
+      args:
+        dbmate_arch: $DBMATE_ARCH
+      target: worker-miner-u
+    environment:
+      <<: [ *worker-config, *async-app ]
+    volumes:
+      - type: bind
+        source: ./data
+        target: /usr/src/data

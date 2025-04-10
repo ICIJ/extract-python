@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Generator, Iterable, Iterator
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
-from typing import Any, Literal, Self, TypeVar
+from typing import Any, ClassVar, Literal, TypeVar
 
 from docling.backend.abstract_backend import AbstractDocumentBackend
 from docling.datamodel.base_models import InputFormat
@@ -24,8 +24,9 @@ from docling_core.types.io import DocumentStream
 from icij_common.pydantic_utils import safe_copy
 from icij_common.registrable import FromConfig
 from pydantic import Field, model_validator
+from typing_extensions import Self
 
-from extract_python.constants import DEFAULT_MD_PAGE_SEP
+from extract_python.constants import CPU_GROUP, DEFAULT_MD_PAGE_SEP
 from extract_python.core.pipeline import Pipeline, PipelineConfig, PipelineType
 from extract_python.objects import (
     BaseModel,
@@ -126,6 +127,8 @@ def _find_subcls(cls: type[T], name: str) -> type[T]:
 @PipelineConfig.register()
 class DoclingPipelineConfig(PipelineConfig):
     pipeline: PipelineType = Field(frozen=True, default=PipelineType.DOCLING)
+    task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
+
     test: bool = False
 
     pipeline_options: OptionsByPipeline = Field(

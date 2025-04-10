@@ -39,7 +39,7 @@ async def test_docling_pdf_to_markdown(
         assert (output_path / p).exists()
         assert (output_path / p).is_dir()
         assert (output_path / p / p.name).with_suffix(".md").exists()
-        assert any((output_path / p).glob("**/*.png"))
+        assert any((output_path / p).glob("page_artifacts/*.png"))
     assert all(r.output.pages for r in res)
     assert not any(r.errors for r in res)
     input_path = [r.input.path for r in res]
