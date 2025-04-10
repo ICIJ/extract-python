@@ -9,7 +9,7 @@ from enum import Enum
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import Annotated, Any, NoReturn, Self
+from typing import Annotated, Any, NoReturn
 
 from icij_common.pydantic_utils import (
     icij_config,
@@ -19,6 +19,7 @@ from icij_common.pydantic_utils import (
 )
 from pydantic import AfterValidator, TypeAdapter
 from pydantic import BaseModel as _BaseModel
+from typing_extensions import Self
 
 try:
     from docling.datamodel.base_models import ConversionStatus, ErrorItem, InputFormat

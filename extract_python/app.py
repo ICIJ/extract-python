@@ -4,7 +4,12 @@ from icij_worker import AsyncApp
 from icij_worker.typing_ import RateProgress
 from icij_worker.utils.progress import to_raw_progress
 
-from extract_python.constants import CPU_GROUP, EXTRACT_CONTENT_TASK
+from extract_python.constants import (
+    CPU_GROUP,
+    EXTRACT_CONTENT_MINER_U_TASK,
+    EXTRACT_CONTENT_TASK,
+    MINER_U_GROUP,
+)
 from extract_python.objects import (
     ExtractionResponse,
     OutputFormat,
@@ -25,8 +30,56 @@ async def extract_content(
     output_format: str = OutputFormat.MARKDOWN.value,
     progress: RateProgress | None = None,
 ) -> dict:
-    from extract_python.core import PipelineConfig
-    from extract_python.core.pipeline import Pipeline
+    return await _extract_content(
+        docs,
+        pipeline_config,
+        output_path,
+        output_format=output_format,
+        progress=progress,
+        expected_group=CPU_GROUP,
+    )
+
+
+@app.task(name=EXTRACT_CONTENT_MINER_U_TASK, group=MINER_U_GROUP)
+async def extract_content_miner_u(
+    docs: str | list[dict | str],
+    pipeline_config: dict,
+    output_path: str,
+    output_format: str = OutputFormat.MARKDOWN.value,
+    progress: RateProgress | None = None,
+) -> dict:
+    return await _extract_content(
+        docs,
+        pipeline_config,
+        output_path,
+        output_format=output_format,
+        progress=progress,
+        expected_group=MINER_U_GROUP,
+    )
+
+
+async def _extract_content(
+    docs: str | list[dict | str],
+    pipeline_config: dict,
+    output_path: str,
+    *,
+    output_format: str,
+    progress: RateProgress,
+    expected_group: str,
+) -> dict:
+    from extract_python.core import Pipeline, PipelineConfig
+
+    pipeline_config = PipelineConfig.model_validate(pipeline_config)
+    if pipeline_config.task_group.default != expected_group:
+        pipeline = pipeline_config.pipeline.value
+        msg = (
+            f"invalid task for pipeline {pipeline}."
+            f'Task "extract_content" runs on task group "{expected_group}". '
+            f"{pipeline} is supposed to run task group"
+            f" {pipeline_config.task_group.default}, please provide the appropriate"
+            f" task name."
+        )
+        raise ValueError(msg)
 
     app_config = lifespan_config()
     data_dir = app_config.data_dir
@@ -34,7 +87,6 @@ async def extract_content(
     docs = parse_extraction_request(docs, data_dir=data_dir)
     if progress is not None:
         progress = to_raw_progress(progress, max_progress=len(docs))
-    pipeline_config = PipelineConfig.model_validate(pipeline_config)
     output_format = OutputFormat(output_format)
     output_path = work_dir / output_path
     output_path.mkdir(parents=True, exist_ok=True)

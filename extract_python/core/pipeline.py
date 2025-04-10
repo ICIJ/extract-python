@@ -16,6 +16,7 @@ StructuredContent = str
 class PipelineType(str, Enum):
     DOCLING = "docling"
     MARKER = "marker"
+    MINER_U = "miner_u"
 
 
 class PipelineConfig(RegistrableConfig, ABC):
@@ -24,6 +25,8 @@ class PipelineConfig(RegistrableConfig, ABC):
 
     registry_key: ClassVar[str] = Field(frozen=True, default="pipeline")
     pipeline: PipelineType
+
+    task_group: ClassVar[str] = Field(frozen=True)
 
 
 class Pipeline(RegistrableFromConfig, ABC):

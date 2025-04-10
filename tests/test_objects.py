@@ -1,8 +1,18 @@
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions, TesseractOcrOptions
+from extract_python.core import (
+    DOCKING_DEFAULT_ARTIFACTS_PATH,
+    DoclingPipelineConfig,
+    PipelineConfig,
+)
 
-from extract_python.core.docling_ import DEFAULT_ARTIFACTS_PATH, DoclingPipelineConfig
-from extract_python.core.pipeline import PipelineConfig
+try:
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import (
+        PdfPipelineOptions,
+        TesseractOcrOptions,
+    )
+except ImportError:
+    InputFormat = None
+    PdfPipelineOptions, TesseractOcrOptions = None, None
 
 
 def test_docling_pipeline_config() -> None:
@@ -29,6 +39,6 @@ def test_docling_pipeline_config() -> None:
     expected_options = PdfPipelineOptions(
         ocr_options=TesseractOcrOptions(lang=["auto"]),
         generate_picture_images=True,
-        artifacts_path=DEFAULT_ARTIFACTS_PATH,
+        artifacts_path=DOCKING_DEFAULT_ARTIFACTS_PATH,
     )
     assert pdf_pipeline_options.model_dump() == expected_options.model_dump()

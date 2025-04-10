@@ -2,7 +2,7 @@ import gc
 from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, ClassVar
 
 from marker.config.parser import ConfigParser
 from marker.converters.pdf import PdfConverter
@@ -11,10 +11,12 @@ from marker.output import text_from_rendered
 from marker.renderers.markdown import MarkdownRenderer
 from PIL.Image import Image
 from pydantic import Field
+from typing_extensions import Self
 
+from extract_python.constants import ARTIFACTS, CPU_GROUP
 from extract_python.core.pipeline import Pipeline, PipelineConfig, PipelineType
+from extract_python.core.utils import report_recoverable_errors
 from extract_python.objects import (
-    Error,
     InputDoc,
     MarkdownDoc,
     OutputFormat,
@@ -27,6 +29,7 @@ from extract_python.utils import path_to_artifacts_dirname
 @PipelineConfig.register()
 class MarkerPipelineConfig(PipelineConfig):
     pipeline: PipelineType = Field(frozen=True, default=PipelineType.MARKER)
+    task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
 
     config: dict[str, Any] = dict()
 
@@ -53,39 +56,28 @@ class MarkerPipeline(Pipeline):
             renderer=renderer,
         )
         for doc in docs:
-            try:
-                rendered = converter(str(doc.path))
-                content, _, images = text_from_rendered(rendered)
-                yield _to_result(doc, content, images, output_format, output_path)
-            # TODO: precisely list recoverable errors
-            except _MARKER_CONVERSION_ERRORS as e:
-                error = Error.from_exception(e)
-                yield Result(
-                    input=doc.without_content(),
-                    status=Status.FAILURE,
-                    errors=[error],
-                    output=None,
-                )
+            yield _process_doc(doc, converter, output_format, output_path)
 
     @classmethod
     def _from_config(cls, config: MarkerPipelineConfig) -> Self:
         return cls(config.config)
 
 
-def _to_result(
-    input_doc: InputDoc,
-    content: str,
-    images: dict[str, Image],
+@report_recoverable_errors(_MARKER_CONVERSION_ERRORS)
+def _process_doc(
+    doc: InputDoc,
+    converter: PdfConverter,
     output_format: OutputFormat,
     output_path: Path,
 ) -> Result:
-    output_path.mkdir(parents=True, exist_ok=True)
+    rendered = converter(str(doc.path))
+    content, _, images = text_from_rendered(rendered)
     match output_format:
         case OutputFormat.MARKDOWN:
-            output = _to_markdown_doc(input_doc, content, images, output_path)
+            output = _to_markdown_doc(doc, content, images, output_path)
         case _:
             raise NotImplementedError(f"unsupported output format {output_format}")
-    input_doc = input_doc.without_content()
+    input_doc = doc.without_content()
     return Result(input=input_doc, status=Status.SUCCESS, output=output)
 
 
@@ -96,10 +88,10 @@ def _to_markdown_doc(
     #  nested in the tree structured
     md_dir_name = path_to_artifacts_dirname(input_doc.path)
     md_dir = output_path / md_dir_name
-    # Let's avoid issue of duplicated input file names flattened top level
-    md_dir.mkdir(parents=True, exist_ok=False)
+    artifacts_dir = md_dir / ARTIFACTS
+    artifacts_dir.mkdir(parents=True)
     for im_name, im in images.items():
-        im.save(md_dir / im_name)
+        im.save(artifacts_dir / im_name)
     del images
     gc.collect()
     page_sep = MarkdownRenderer.page_separator
