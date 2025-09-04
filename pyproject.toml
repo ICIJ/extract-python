@@ -6,47 +6,48 @@ authors = [
   { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
 ]
 readme = "README.md"
-requires-python = ">=3.10,<=3.12"
+requires-python = ">=3.11,<3.12"
 dependencies = [
   "icij-worker[amqp,postgres]~=0.17.21",
-  "pydantic-settings~=2.8.1"
+  "pydantic-settings~=2.8.1",
+  "torch>=2.6,<2.9.0.dev20250901",
+  "torchvision>=0.23,<0.24.0.dev20250901",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = ["icij_worker"]
 
 [project.optional-dependencies]
-cpu = [
+docling = [
   "docling~=2.26",
   "docling[tesserocr]~=2.26; 'tesseract' in extra",
   "docling[rapidocr]~=2.26; 'rapidocr' in extra",
   "docling[ocrmac]~=2.26; sys_platform == 'darwin'",
   "pytorch-triton-xpu~=3.2; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "marker-pdf>=1.6.2",
-  "torch>=2.6,<2.7.0.dev20250309",
-  "torchvision~=0.21",
 ]
 
-miner-u = [
-  "detectron2==0.6",
-  "doclayout-yolo>=0.0.2b1",
-  "paddlepaddle>=3.0.0rc1",
-  "magic-pdf[full]~=1.3",
-  "torch",
-  "torchvision",
+marker = [
+  "marker-pdf>=1.6.2",
+]
+
+mineru = [
+  "mineru[core]~=2.1",
+  "pydantic-extra-types>=2.10.5",
+  "pycountry>=24.6.1",
 ]
 
 [tool.uv]
-environments = [
+required-environments = [
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
   "sys_platform == 'linux'",
 ]
 conflicts = [
     [
-        { extra = "miner-u" },
-        { extra = "cpu" },
+        { extra = "mineru" },
+        { extra = "marker" },
     ]
 ]
+
 
 [dependency-groups]
 dev = [
@@ -58,12 +59,6 @@ dev = [
 Homepage = "https://github.com/ICIJ/extract-python"
 Repository = "https://github.com/ICIJ/extract-python"
 Issues = "https://github.com/ICIJ/extract-python/issues"
-
-[[tool.uv.index]]
-name = "myhloli"
-url = "https://wheels.myhloli.com/"
-explicit = true
-
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -87,20 +82,15 @@ explicit = true
 
 
 [tool.uv.sources]
-detectron2 = [
-  { index = "myhloli" },
-]
 torch = [
-  { index = "pytorch-xpu", extra = "cpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
-  { index = "pytorch-cu126", extra = "cpu", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
-  { index = "pytorch-cpu-nightly", extra = "cpu", marker = "sys_platform == 'darwin'" },
-  { index= "pytorch-cpu", extra = "miner-u" }
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
+  { index = "pytorch-cpu-nightly", marker = "sys_platform == 'darwin'" },
 ]
 torchvision = [
-  { index = "pytorch-xpu", extra = "cpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
-  { index = "pytorch-cu126", extra = "cpu", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
-  { index = "pytorch-cpu-nightly", extra = "cpu", marker = "sys_platform == 'darwin'" },
-  { index= "pytorch-cpu", extra = "miner-u" }
+  { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' and platform_machine != 'x86_64'" },
+  { index = "pytorch-cpu-nightly", marker = "sys_platform == 'darwin'" },
 ]
 pytorch-triton-xpu = [
   { index = "pytorch-xpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
@@ -114,6 +104,9 @@ extract_app = "extract_python.app:app"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "[%(levelname)s][%(asctime)s.%(msecs)03d][%(name)s]: %(message)s"
 markers = [
   "integration: integration test",
   "miner_u: minerU test which require conflicting extras",
