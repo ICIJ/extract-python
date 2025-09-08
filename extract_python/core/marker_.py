@@ -20,6 +20,7 @@ from extract_python.objects import (
     InputDoc,
     MarkdownDoc,
     OutputFormat,
+    PageIndexes,
     Result,
     Status,
 )
@@ -39,7 +40,9 @@ _MARKER_CONVERSION_ERRORS = tuple()
 
 @Pipeline.register(PipelineType.MARKER)
 class MarkerPipeline(Pipeline):
-    def __init__(self, marker_config: dict[str, Any]):
+    def __init__(self, marker_config: dict[str, Any] | None = None):
+        if marker_config is None:
+            marker_config = dict()
         self._marker_config = marker_config
 
     async def extract_content(
@@ -101,8 +104,8 @@ def _to_markdown_doc(
         OutputFormat.MARKDOWN.value
     )
     total_length = 0
+    end_indices = []
     with md_path.open("w", encoding="utf-8") as f:
-        pages = [0]
         for page_i, page_content in enumerate(content):
             content = page_content
             if page_i > 0:
@@ -110,7 +113,8 @@ def _to_markdown_doc(
             if page_i < n_pages - 1:
                 content += page_sep
             total_length += len(content)
-            pages.append(total_length)
+            end_indices.append(total_length)
             f.write(content)
             f.flush()
+    pages = PageIndexes.from_page_end_indices(end_indices)
     return MarkdownDoc(path=Path(md_dir_name), pages=pages)
