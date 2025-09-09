@@ -17,7 +17,7 @@ from icij_common.pydantic_utils import (
     no_enum_values_config,
     safe_copy,
 )
-from pydantic import AfterValidator, TypeAdapter
+from pydantic import AfterValidator, RootModel, TypeAdapter
 from pydantic import BaseModel as _BaseModel
 from typing_extensions import Self
 
@@ -143,7 +143,13 @@ class InputDoc(BaseModel):
         return safe_copy(self, update={"content": None})
 
 
-PageIndexes = list[int]
+class PageIndexes(RootModel[list[tuple[int, int]]]):
+    # Stores page end index
+    @classmethod
+    def from_page_end_indices(cls, lengths: list[int]) -> Self:
+        return [
+            ((lengths[p - 1] if p > 0 else 0), lengths[p]) for p in range(len(lengths))
+        ]
 
 
 class ConversionOutput(BaseModel):

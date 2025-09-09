@@ -18,6 +18,13 @@ dependencies = [
 include = ["icij_worker"]
 
 [project.optional-dependencies]
+benches = [
+    "html2image~=2.0.7",
+    "markdown2>=2.5.4",
+    "notebook>=7.4.5",
+    "pypdfium2>=4.30.0",
+]
+
 docling = [
   "docling~=2.26",
   "docling[tesserocr]~=2.26; 'tesseract' in extra",

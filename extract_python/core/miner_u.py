@@ -20,6 +20,7 @@ from extract_python.objects import (
     ConversionOutput,
     InputDoc,
     OutputFormat,
+    PageIndexes,
     Result,
     Status,
 )
@@ -141,7 +142,7 @@ def _dump_md_content(
     md_make_mode: str = MakeMode.MM_MD,
 ) -> ConversionOutput:
     total_length = 0
-    pages = [0]
+    end_indices = []
     with md_path.open("w") as f:
         n_pages = len(pdf_info)
         for page_i, page in enumerate(pdf_info):
@@ -153,9 +154,10 @@ def _dump_md_content(
             if page_i < n_pages - 1:
                 content += page_sep
             total_length += len(content)
-            pages.append(total_length)
+            end_indices.append(total_length)
             f.write(content)
             f.flush()
+    end_indices = PageIndexes.from_page_end_indices(end_indices)
     output_path = md_path.parent.relative_to(output_path)
-    output = ConversionOutput(path=output_path, pages=pages)
+    output = ConversionOutput(path=output_path, pages=end_indices)
     return output

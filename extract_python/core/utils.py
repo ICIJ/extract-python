@@ -1,4 +1,8 @@
+import os
+from collections.abc import Generator
+from contextlib import contextmanager
 from functools import wraps
+from pathlib import Path
 from typing import Callable, Protocol
 
 from extract_python.objects import Error, InputDoc, Result, Status
@@ -28,3 +32,13 @@ def report_recoverable_errors(
         return wrapped
 
     return make_decorator
+
+
+@contextmanager
+def chdir(path: Path) -> Generator[None, None, None]:
+    cwd = Path.cwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(cwd)

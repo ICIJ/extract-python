@@ -1,8 +1,4 @@
-from extract_python.core import (
-    DOCKING_DEFAULT_ARTIFACTS_PATH,
-    DoclingPipelineConfig,
-    PipelineConfig,
-)
+from extract_python.core import DoclingPipelineConfig, PipelineConfig
 
 try:
     from docling.datamodel.base_models import InputFormat
@@ -39,6 +35,5 @@ def test_docling_pipeline_config() -> None:
     expected_options = PdfPipelineOptions(
         ocr_options=TesseractOcrOptions(lang=["auto"]),
         generate_picture_images=True,
-        artifacts_path=DOCKING_DEFAULT_ARTIFACTS_PATH,
     )
     assert pdf_pipeline_options.model_dump() == expected_options.model_dump()
