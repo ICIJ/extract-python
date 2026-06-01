@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.sdist]
-include = ["icij_worker"]
+include = ["extract_python"]
 
 [project.optional-dependencies]
 benches = [
