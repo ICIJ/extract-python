@@ -22,7 +22,7 @@ def test_docling_pipeline_config() -> None:
         "format_options": {
             "pdf": {
                 "pipeline_cls": "StandardPdfPipeline",
-                "backend_cls": "DoclingParseV4DocumentBackend",
+                "backend_cls": "DoclingParseDocumentBackend",
             },
         },
     }
