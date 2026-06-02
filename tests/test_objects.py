@@ -1,4 +1,5 @@
-from extract_python.core import DoclingPipelineConfig, PipelineConfig
+from extract_python.docling_ import DoclingPipelineConfig
+from extract_python.pipeline import PipelineConfig
 
 try:
     from docling.datamodel.base_models import InputFormat

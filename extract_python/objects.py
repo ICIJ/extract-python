@@ -5,11 +5,11 @@ import os
 import traceback
 import uuid
 from abc import ABC
-from enum import Enum
+from enum import StrEnum
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, NoReturn, Self
 
 from icij_common.pydantic_utils import (
     icij_config,
@@ -19,7 +19,6 @@ from icij_common.pydantic_utils import (
 )
 from pydantic import AfterValidator, RootModel, TypeAdapter
 from pydantic import BaseModel as _BaseModel
-from typing_extensions import Self
 
 try:
     from docling.datamodel.base_models import ConversionStatus, ErrorItem, InputFormat
@@ -38,14 +37,14 @@ class BaseModel(_BaseModel):
     model_config = base_config
 
 
-class SupportedExt(str, Enum):
+class SupportedExt(StrEnum):
     PDF = ".pdf"
 
     def to_docling(self) -> InputFormat:
         return InputFormat(self.value[1:])
 
 
-class OutputFormat(str, Enum):
+class OutputFormat(StrEnum):
     MARKDOWN = ".md"
 
     @property
@@ -60,14 +59,14 @@ class OutputFormat(str, Enum):
                 raise ValueError(f"{self} is unsupported by marker")
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     FAILURE = "failure"
     SUCCESS = "success"
     PARTIAL_SUCCESS = "partial_success"
 
     @classmethod
     def from_docling(cls, v: Any) -> Self:
-        from docling.datamodel.base_models import ConversionStatus
+        from docling.datamodel.base_models import ConversionStatus  # noqa: PLC0415
 
         if v is ConversionStatus.SUCCESS:
             return cls.SUCCESS
@@ -162,7 +161,7 @@ class MarkdownDoc(ConversionOutput):
     @property
     @cache
     def _valid_conversion_statuses(cls) -> set[ConversionStatus]:
-        from docling.datamodel.base_models import ConversionStatus
+        from docling.datamodel.base_models import ConversionStatus  # noqa: PLC0415
 
         return {ConversionStatus.SUCCESS, ConversionStatus.PARTIAL_SUCCESS}
 

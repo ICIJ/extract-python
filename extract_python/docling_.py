@@ -22,10 +22,8 @@ from docling_core.types.io import DocumentStream
 from icij_common.registrable import FromConfig
 from pydantic import Field, model_validator
 
-from extract_python.constants import ARTIFACTS, CPU_GROUP, DEFAULT_MD_PAGE_SEP
-from extract_python.core.pipeline import Pipeline, PipelineConfig, PipelineType
-from extract_python.core.utils import chdir
-from extract_python.objects import (
+from .constants import ARTIFACTS, CPU_GROUP, DEFAULT_MD_PAGE_SEP
+from .objects import (
     BaseModel,
     Error,
     InputDoc,
@@ -35,11 +33,8 @@ from extract_python.objects import (
     Result,
     Status,
 )
-from extract_python.utils import (
-    all_subclasses,
-    map_and_preserve,
-    path_to_artifacts_dirname,
-)
+from .pipeline import Pipeline, PipelineConfig, PipelineType
+from .utils import all_subclasses, chdir, map_and_preserve, path_to_artifacts_dirname
 
 DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
@@ -157,7 +152,7 @@ class DoclingPipeline(Pipeline):
     ) -> AsyncGenerator[Result, None]:
         docs, path_or_streams = map_and_preserve(_to_docling, docs)
         outputs = self._converter.convert_all(path_or_streams, raises_on_error=False)
-        for doc, res in zip(docs, outputs):
+        for doc, res in zip(docs, outputs, strict=True):
             yield _to_result(res, doc, output_format, output_path=output_path)
 
     @classmethod

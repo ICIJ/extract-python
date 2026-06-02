@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Iterable
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import ClassVar
 
@@ -8,12 +8,12 @@ from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_value
 from icij_common.registrable import RegistrableConfig, RegistrableFromConfig
 from pydantic import Field
 
-from extract_python.objects import InputDoc, OutputFormat, Result
+from .objects import InputDoc, OutputFormat, Result
 
 StructuredContent = str
 
 
-class PipelineType(str, Enum):
+class PipelineType(StrEnum):
     DOCLING = "docling"
     MARKER = "marker"
     MINER_U = "miner_u"

@@ -3,25 +3,30 @@ from typing import cast
 
 import pytest
 
-from extract_python.core import MinerUPipeline, MinerUPipelineConfig, Pipeline
-from extract_python.objects import InputDoc, OutputFormat, Status
+from extract_python import (
+    InputDoc,
+    MarkerPipeline,
+    MarkerPipelineConfig,
+    OutputFormat,
+    Pipeline,
+    Status,
+)
 from tests import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config() -> MinerUPipelineConfig:
-    return MinerUPipelineConfig()
+def config() -> MarkerPipelineConfig:
+    return MarkerPipelineConfig()
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: MinerUPipelineConfig) -> MinerUPipeline:
-    return cast(MinerUPipelineConfig, Pipeline.from_config(config=config))
+def pipeline(config: MarkerPipelineConfig) -> MarkerPipeline:
+    return cast(MarkerPipeline, Pipeline.from_config(config=config))
 
 
-@pytest.mark.miner_u
 @pytest.mark.integration
-async def test_miner_u_pdf_to_markdown(
-    pipeline: MinerUPipeline, docs: list[InputDoc], tmpdir: Path
+async def test_marker_pdf_to_markdown(
+    pipeline: MarkerPipeline, docs: list[InputDoc], tmpdir: Path
 ) -> None:
     # Given
     output_path = Path(tmpdir)
@@ -38,7 +43,7 @@ async def test_miner_u_pdf_to_markdown(
         assert (output_path / p).exists()
         assert (output_path / p).is_dir()
         assert (output_path / p / p.name).with_suffix(".md").exists()
-        assert any((output_path / p).glob("artifacts/*.jpg"))
+        assert any((output_path / p).glob("artifacts/*.jpeg"))
     assert all(r.output.pages for r in res)
     assert not any(r.errors for r in res)
     input_path = [r.input.path for r in res]

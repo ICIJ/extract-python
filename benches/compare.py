@@ -3,10 +3,10 @@ from tempfile import TemporaryDirectory
 
 import markdown2
 import pypdfium2
+from extract_python.pipelines.utils import chdir
 from html2image import Html2Image
 from PIL import Image, ImageDraw
 
-from extract_python.core.utils import chdir
 from extract_python.objects import BaseModel, OutputFormat, PageIndexes
 
 _WHITE_BACKGROUND_CSS = "body {background: white;}"

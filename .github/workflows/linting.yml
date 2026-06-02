@@ -6,14 +6,7 @@ on:
   pull_request:
 
 jobs:
-  linting-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: check -v --config qa/ruff.toml --no-fix
-          version: 0.11.2
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

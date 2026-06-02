@@ -2,7 +2,7 @@ import gc
 from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from marker.config.parser import ConfigParser
 from marker.converters.pdf import PdfConverter
@@ -11,12 +11,9 @@ from marker.output import text_from_rendered
 from marker.renderers.markdown import MarkdownRenderer
 from PIL.Image import Image
 from pydantic import Field
-from typing_extensions import Self
 
-from extract_python.constants import ARTIFACTS, CPU_GROUP
-from extract_python.core.pipeline import Pipeline, PipelineConfig, PipelineType
-from extract_python.core.utils import report_recoverable_errors
-from extract_python.objects import (
+from .constants import ARTIFACTS, CPU_GROUP
+from .objects import (
     InputDoc,
     MarkdownDoc,
     OutputFormat,
@@ -24,7 +21,8 @@ from extract_python.objects import (
     Result,
     Status,
 )
-from extract_python.utils import path_to_artifacts_dirname
+from .pipeline import Pipeline, PipelineConfig, PipelineType
+from .utils import path_to_artifacts_dirname, report_recoverable_errors
 
 
 @PipelineConfig.register()

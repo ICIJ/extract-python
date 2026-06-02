@@ -3,9 +3,10 @@ from typing import cast
 
 import pytest
 
-from extract_python.core import DoclingPipeline, DoclingPipelineConfig, Pipeline
+from extract_python import DoclingPipeline, DoclingPipelineConfig, Pipeline
 from extract_python.objects import InputDoc, OutputFormat, Status
-from tests import TEST_DATA_DIR
+
+from . import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
