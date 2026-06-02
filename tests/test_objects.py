@@ -1,6 +1,3 @@
-from extract_python.docling_ import DoclingPipelineConfig
-from extract_python.pipeline import PipelineConfig
-
 try:
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import (
@@ -13,6 +10,8 @@ except ImportError:
 
 
 def test_docling_pipeline_config() -> None:
+    from extract_python import DoclingPipelineConfig, PipelineConfig  # noqa: PLC0415
+
     # Given
     config = {
         "pipeline": "docling",
@@ -27,6 +26,7 @@ def test_docling_pipeline_config() -> None:
         },
     }
     # When
+
     pipeline_config = PipelineConfig.model_validate(config)
     # Then
     assert isinstance(pipeline_config, DoclingPipelineConfig)

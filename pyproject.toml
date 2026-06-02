@@ -34,6 +34,7 @@ mineru = [
   "mineru[pipeline,vlm]~=3.2",
   "mineru[mlx]~=3.2; sys_platform == 'darwin'",
   "pydantic-extra-types[pycountry]~=2.11",
+  "six~=1.17",
 ]
 
 [tool.uv]

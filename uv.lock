@@ -891,6 +891,7 @@ mineru = [
     { name = "mineru", extra = ["mlx"], marker = "(sys_platform == 'darwin' and extra == 'extra-14-extract-python-mineru') or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
     { name = "mineru", extra = ["pipeline", "vlm"], marker = "extra == 'extra-14-extract-python-mineru'" },
     { name = "pydantic-extra-types", extra = ["pycountry"], marker = "extra == 'extra-14-extract-python-mineru'" },
+    { name = "six" },
 ]
 
 [package.dev-dependencies]
@@ -911,6 +912,7 @@ requires-dist = [
     { name = "notebook", marker = "extra == 'benches'", specifier = ">=7.4.5" },
     { name = "pydantic-extra-types", extras = ["pycountry"], marker = "extra == 'mineru'", specifier = "~=2.11" },
     { name = "pypdfium2", marker = "extra == 'benches'", specifier = ">=4.30.0" },
+    { name = "six", marker = "extra == 'mineru'", specifier = ">=1.17.0" },
 ]
 provides-extras = ["benches", "docling", "marker", "mineru"]
 
