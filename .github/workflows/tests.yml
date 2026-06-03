@@ -37,7 +37,8 @@ jobs:
           enable-cache: true
       - name: Install tesseract
         run: |
-          sudo apt-get install -y tesseract-ocr \
+          sudo apt-get update
+          sudo apt-get install -y --fix-missing tesseract-ocr \
               tesseract-ocr-eng \
               tesseract-ocr-fra \
               tesseract-ocr-deu \
@@ -69,19 +70,6 @@ jobs:
           version: ${{ env.ASTRAL_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
-      - name: Install tesseract
-        run: |
-          sudo apt-get install -y tesseract-ocr \
-              tesseract-ocr-eng \
-              tesseract-ocr-fra \
-              tesseract-ocr-deu \
-              tesseract-ocr-spa \
-              tesseract-ocr-lat \
-              tesseract-ocr-jpn \
-              libtesseract-dev \
-              libleptonica-dev \
-              pkg-config
-          echo "TESSDATA_PREFIX=$(sudo dpkg -L tesseract-ocr-eng | grep tessdata$)" >> $GITHUB_ENV
       - name: Run tests
         run: |
           uv run --dev --extra mineru --frozen pytest -m "miner_u" -vvv --cache-clear --show-capture=all -r A tests

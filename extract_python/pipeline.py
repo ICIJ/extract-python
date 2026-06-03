@@ -8,7 +8,7 @@ from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_value
 from icij_common.registrable import RegistrableConfig, RegistrableFromConfig
 from pydantic import Field
 
-from .objects import InputDoc, OutputFormat, Result
+from .objects import InputDoc, OutputFormat, Result, SupportedExt
 
 StructuredContent = str
 
@@ -27,6 +27,10 @@ class PipelineConfig(RegistrableConfig, ABC):
     pipeline: PipelineType
 
     task_group: ClassVar[str] = Field(frozen=True)
+
+    @classmethod
+    @abstractmethod
+    def supported_formats(cls) -> set[SupportedExt]: ...
 
 
 class Pipeline(RegistrableFromConfig, ABC):

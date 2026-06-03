@@ -3,7 +3,7 @@ import shutil
 from collections.abc import AsyncGenerator, Callable, Iterable
 from copy import copy
 from enum import StrEnum
-from functools import partial
+from functools import cache, partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, ClassVar, Self
@@ -26,6 +26,7 @@ from .objects import (
     PageIndexes,
     Result,
     Status,
+    SupportedExt,
 )
 from .pipeline import Pipeline, PipelineConfig, PipelineType
 from .utils import path_to_artifacts_dirname
@@ -81,6 +82,16 @@ class MinerUPipelineConfig(PipelineConfig):  # noqa: F821
 
     config: MinerUConfig = Field(frozen=True, default=MinerUConfig())
     language: LanguageAlpha2 = Field(frozen=True, default="en")
+
+    @classmethod
+    @cache
+    def supported_formats(cls) -> set[SupportedExt]:
+        return {
+            SupportedExt.PDF,
+            SupportedExt.DOCX,
+            SupportedExt.PPTX,
+            SupportedExt.XLSX,
+        }
 
 
 @Pipeline.register(PipelineType.MINER_U)

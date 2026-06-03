@@ -1,6 +1,7 @@
 import gc
 from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
+from functools import cache
 from pathlib import Path
 from typing import Any, ClassVar, Self
 
@@ -20,6 +21,7 @@ from .objects import (
     PageIndexes,
     Result,
     Status,
+    SupportedExt,
 )
 from .pipeline import Pipeline, PipelineConfig, PipelineType
 from .utils import path_to_artifacts_dirname, report_recoverable_errors
@@ -31,6 +33,33 @@ class MarkerPipelineConfig(PipelineConfig):
     task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
 
     config: dict[str, Any] = dict()
+
+    @classmethod
+    @cache
+    def supported_formats(cls) -> set[SupportedExt]:
+        # Subset of https://documentation.datalab.to/docs/common/supportedfiletypes
+        return {
+            SupportedExt.PDF,
+            SupportedExt.XLS,
+            SupportedExt.XLSX,
+            SupportedExt.XLSM,
+            SupportedExt.CSV,
+            SupportedExt.ODS,
+            SupportedExt.DOC,
+            SupportedExt.DOCX,
+            SupportedExt.ODT,
+            SupportedExt.PPT,
+            SupportedExt.PPTX,
+            SupportedExt.ODP,
+            SupportedExt.HTLM,
+            SupportedExt.EPUB,
+            SupportedExt.PNG,
+            SupportedExt.JPG,
+            SupportedExt.JPEG,
+            SupportedExt.WEBP,
+            SupportedExt.GIF,
+            SupportedExt.TIFF,
+        }
 
 
 _MARKER_CONVERSION_ERRORS = tuple()

@@ -912,7 +912,7 @@ requires-dist = [
     { name = "notebook", marker = "extra == 'benches'", specifier = ">=7.4.5" },
     { name = "pydantic-extra-types", extras = ["pycountry"], marker = "extra == 'mineru'", specifier = "~=2.11" },
     { name = "pypdfium2", marker = "extra == 'benches'", specifier = ">=4.30.0" },
-    { name = "six", marker = "extra == 'mineru'", specifier = ">=1.17.0" },
+    { name = "six", marker = "extra == 'mineru'", specifier = "~=1.17" },
 ]
 provides-extras = ["benches", "docling", "marker", "mineru"]
 

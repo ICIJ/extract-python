@@ -32,6 +32,7 @@ from .objects import (
     PageIndexes,
     Result,
     Status,
+    SupportedExt,
 )
 from .pipeline import Pipeline, PipelineConfig, PipelineType
 from .utils import all_subclasses, chdir, map_and_preserve, path_to_artifacts_dirname
@@ -134,6 +135,30 @@ class DoclingPipelineConfig(PipelineConfig):
         return {
             InputFormat(f): opt.to_docling(pipeline_options)
             for f, opt in self.format_options.items()
+        }
+
+    @classmethod
+    @cache
+    def supported_formats(cls) -> set[SupportedExt]:
+        # Subset of https://docling-project.github.io/docling/usage/supported_formats/
+        return {
+            SupportedExt.ADOC,
+            SupportedExt.ASCIIDOC,
+            SupportedExt.BMP,
+            SupportedExt.CSV,
+            SupportedExt.DOCX,
+            SupportedExt.HTLM,
+            SupportedExt.JPG,
+            SupportedExt.MD,
+            SupportedExt.PDF,
+            SupportedExt.PNG,
+            SupportedExt.PPTX,
+            SupportedExt.TEX,
+            SupportedExt.TIFF,
+            SupportedExt.TXT,
+            SupportedExt.WEBP,
+            SupportedExt.XHTML,
+            SupportedExt.XLSX,
         }
 
 
