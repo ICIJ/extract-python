@@ -74,5 +74,18 @@ markers = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["extract_python"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "tests",
+]
+[tool.uv-dynamic-versioning]
+fallback-version = "0.0.0"
