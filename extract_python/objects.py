@@ -38,7 +38,34 @@ class BaseModel(_BaseModel):
 
 
 class SupportedExt(StrEnum):
+    ADOC = ".adoc"
+    ASCIIDOC = ".asciidoc"
+    BMP = ".bmp"
+    CSV = ".csv"
+    DOC = ".doc"
+    DOCX = ".docx"
+    EPUB = ".epub"
+    GIF = ".gif"
+    HTLM = ".html"
+    JPEG = ".jpeg"
+    JPG = ".jpg"
+    MD = ".md"
+    ODP = ".odp"
+    ODS = ".ods"
+    ODT = ".odt"
     PDF = ".pdf"
+    PNG = ".png"
+    PPT = ".ppt"
+    PPTX = ".pptx"
+    TEX = ".tex"
+    TIFF = ".tiff"
+    TXT = ".txt"
+    WEBP = ".webp"
+    XHTML = ".xhtml"
+    XLS = ".xls"
+    XLSM = ".xlsm"
+    XLSX = ".xlsx"
+    XLTX = ".xltx"
 
     def to_docling(self) -> InputFormat:
         return InputFormat(self.value[1:])
