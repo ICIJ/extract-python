@@ -1,6 +1,6 @@
 [project]
 name = "extract-python"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Structured content extraction"
 authors = [
   { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
