@@ -11,9 +11,6 @@ dependencies = [
     "icij-common~=0.8.2",
 ]
 
-[tool.hatch.build.targets.sdist]
-include = ["extract_python"]
-
 [project.optional-dependencies]
 benches = [
   "html2image~=2.0.7",
