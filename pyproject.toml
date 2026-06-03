@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "icij-common~=0.8.2",
+  "icij-common~=0.8.2",
 ]
 
 [project.optional-dependencies]
@@ -36,10 +36,10 @@ mineru = [
 
 [tool.uv]
 conflicts = [
-    [
-      { extra = "marker" },
-      { extra = "mineru" },
-    ],
+  [
+    { extra = "marker" },
+    { extra = "mineru" },
+  ],
 ]
 required-environments = [
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -86,3 +86,4 @@ exclude = [
 ]
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0"
+pattern = "default-unprefixed"
