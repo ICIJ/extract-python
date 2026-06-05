@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, Any, ClassVar, Self, TypeVar, get_type_hints
 
 from docling.backend.abstract_backend import AbstractDocumentBackend
-from docling.datamodel.backend_options import BackendOptions
+from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 
 # Data model import are quick it's ok to leave it there
 from docling.datamodel.base_models import FormatToExtensions, InputFormat
@@ -26,7 +26,15 @@ from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
 from icij_common.pydantic_utils import to_lower_snake_case
 from icij_common.registrable import FromConfig
-from pydantic import AfterValidator, BeforeValidator, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    BeforeValidator,
+    Field,
+    PlainSerializer,
+    WrapSerializer,
+    model_validator,
+)
+from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .objects import (
@@ -73,13 +81,30 @@ def _find_subcls(cls: type[T], name: str) -> type[T]:
 
 def _find_init_arg_type(cls: type[Any], arg: str) -> type:
     hints = get_type_hints(cls.__init__)
-    return hints[arg].__class__
+    return hints[arg]
 
 
 def _resolve_pipeline_cls(v: Any) -> Any:
     if isinstance(v, str):
         return _find_subcls(BasePipeline, v)
     return v
+
+
+def _ser_class_as_str(v: Any) -> Any:
+    if isinstance(v, type):
+        return v.__name__
+    return v
+
+
+def _ser_with_backend_option_kind(
+    v: Any, handler: SerializerFunctionWrapHandler
+) -> Any:
+    serialized = handler(v)
+    if isinstance(v, BaseBackendOptions):
+        kind = getattr(v, "kind", None)
+        if kind is not None:
+            serialized["kind"] = kind
+    return serialized
 
 
 def _resolve_backend(v: Any) -> Any:
@@ -90,15 +115,21 @@ def _resolve_backend(v: Any) -> Any:
 
 class DoclingFormatOption(FormatOption):
     pipeline_cls: Annotated[
-        str | type[BasePipeline], BeforeValidator(_resolve_pipeline_cls)
+        str | type[BasePipeline],
+        BeforeValidator(_resolve_pipeline_cls),
+        PlainSerializer(_ser_class_as_str),
     ]
     pipeline_options: Annotated[
         dict | PipelineOptions | None, AfterValidator(_validate_pipeline_opts)
     ] = None
     backend: Annotated[
-        str | type[AbstractDocumentBackend], BeforeValidator(_resolve_backend)
+        str | type[AbstractDocumentBackend],
+        BeforeValidator(_resolve_backend),
+        PlainSerializer(_ser_class_as_str),
     ]
-    backend_options: BackendOptions | None = None
+    backend_options: Annotated[
+        BackendOptions | None, WrapSerializer(_ser_with_backend_option_kind)
+    ] = None
 
     @model_validator(mode="after")
     def _resolve_pipeline_options(self) -> Self:

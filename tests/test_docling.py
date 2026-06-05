@@ -52,6 +52,24 @@ def test_format_option_derser() -> None:
     assert deserialized == expected
 
 
+def test_format_option_ser() -> None:
+    # Given
+
+    config = DoclingPipelineConfig(
+        format_options={
+            InputFormat.PDF: DoclingFormatOption(
+                pipeline_cls=LegacyStandardPdfPipeline,
+                backend_options=PdfBackendOptions(),
+                backend=PyPdfiumDocumentBackend,
+            )
+        },
+    )
+    # When
+    serialized = config.model_dump_json(indent=2)
+    deserialized = DoclingPipelineConfig.model_validate_json(serialized)
+    assert deserialized == config
+
+
 @pytest.mark.integration
 async def test_docling_pdf_to_markdown(
     pipeline: DoclingPipeline, docs: list[InputDoc], tmpdir: Path
