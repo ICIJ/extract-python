@@ -71,6 +71,7 @@ class SupportedExt(StrEnum):
     DOTM = ".dotm"
     DOCM = ".docm"
     EPUB = ".epub"
+    EML = ".eml"
     GIF = ".gif"
     HTLM = ".html"
     HTM = ".htm"
