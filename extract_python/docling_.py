@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 def _validate_pipeline_opts(opts: "PipelineOptions") -> None:
-    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.datamodel.pipeline_options import PdfPipelineOptions  # noqa: PLC0415
 
     if isinstance(opts, PdfPipelineOptions) and not opts.generate_picture_images:
         msg = "generate_picture_images should be set to true"
@@ -49,11 +49,11 @@ def _validate_options(
 
 @cache
 def _default_format_opts() -> dict["InputFormat", "FormatOption"]:
-    from docling.datamodel.pipeline_options import (
+    from docling.datamodel.pipeline_options import (  # noqa: PLC0415
         EasyOcrOptions,
         PdfPipelineOptions,
     )
-    from docling.document_converter import PdfFormatOption
+    from docling.document_converter import PdfFormatOption  # noqa: PLC0415
 
     return {
         InputFormat.PDF: PdfFormatOption(
@@ -80,10 +80,10 @@ class DoclingPipelineConfig(PipelineConfig):
     task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
 
     format_options: Annotated[
-        dict[InputFormat, FormatOption] | None, AfterValidator(_validate_options)
+        dict["InputFormat", "FormatOption"] | None, AfterValidator(_validate_options)
     ] = Field(default_factory=_default_format_opts)
 
-    _unsupported_input_formats: ClassVar[set[InputFormat]] = {
+    _unsupported_input_formats: ClassVar[set["InputFormat"]] = {
         InputFormat.AUDIO,
         InputFormat.METS_GBS,
         InputFormat.VTT,
@@ -92,7 +92,10 @@ class DoclingPipelineConfig(PipelineConfig):
     @classmethod
     @cache
     def supported_exts(cls) -> set[SupportedExt]:
-        from docling.datamodel.base_models import FormatToExtensions, InputFormat
+        from docling.datamodel.base_models import (  # noqa: PLC0415
+            FormatToExtensions,
+            InputFormat,
+        )
 
         supported = set()
         for f in InputFormat:
@@ -106,7 +109,7 @@ class DoclingPipelineConfig(PipelineConfig):
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
     def __init__(self, format_options: dict[InputFormat, FormatOption] | None = None):
-        from docling.document_converter import DocumentConverter
+        from docling.document_converter import DocumentConverter  # noqa: PLC0415
 
         allowed_format = [
             f.to_docling() for f in DoclingPipelineConfig.supported_exts()
@@ -160,7 +163,7 @@ def _to_markdown_doc(
     page_sep: str = DEFAULT_MD_PAGE_SEP,
     **kwargs,
 ) -> MarkdownDoc:
-    from docling_core.types.doc import ImageRefMode
+    from docling_core.types.doc import ImageRefMode  # noqa: PLC0415
 
     # TODO: Should we add a hash to avoid collision between files with same names
     #  nested in the tree structured

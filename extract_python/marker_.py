@@ -73,9 +73,9 @@ class MarkerPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
-        from marker.config.parser import ConfigParser
-        from marker.converters.pdf import PdfConverter
-        from marker.models import create_model_dict
+        from marker.config.parser import ConfigParser  # noqa: PLC0415
+        from marker.converters.pdf import PdfConverter  # noqa: PLC0415
+        from marker.models import create_model_dict  # noqa: PLC0415
 
         config = deepcopy(self._marker_config)
         config["output_format"] = output_format.to_marker()
@@ -102,7 +102,7 @@ def _process_doc(
     output_format: OutputFormat,
     output_path: Path,
 ) -> Result:
-    from marker.output import text_from_rendered
+    from marker.output import text_from_rendered  # noqa: PLC0415
 
     rendered = converter(str(doc.path))
     content, _, images = text_from_rendered(rendered)
@@ -118,7 +118,7 @@ def _process_doc(
 def _to_markdown_doc(
     input_doc: InputDoc, content: str, images: dict[str, "Image"], output_path: Path
 ) -> MarkdownDoc:
-    from marker.renderers.markdown import MarkdownRenderer
+    from marker.renderers.markdown import MarkdownRenderer  # noqa: PLC0415
 
     # TODO: Should we add a hash to avoid collision between files with same names
     #  nested in the tree structured

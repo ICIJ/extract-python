@@ -52,13 +52,12 @@ class MinerUConfig(BaseModel):
     @classmethod
     @cache
     def _get_default_kwargs(cls) -> dict[str, Any]:
-
-        from mineru.utils.enum_class import MakeMode
+        from mineru.utils.enum_class import MakeMode  # noqa: PLC0415
 
         return {
             "server_url": None,
-            # We don't dump md directly we process, we dump the middle json in order to be
-            # able to get page indexes
+            # We don't dump md directly we process, we dump the middle json in order
+            # to be able to get page indexes
             "parse_method": "auto",
             "dump_md": False,
             "dump_middle_json": True,
@@ -104,7 +103,7 @@ class MinerUPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
-        from mineru.cli.common import aio_do_parse
+        from mineru.cli.common import aio_do_parse  # noqa: PLC0415
 
         docs = list(docs)
         # TODO: exclude files which are not pdf and return an error
@@ -154,13 +153,15 @@ def _parse_md_make_fn(backend: MinerUBackend) -> MDMakeFunction:
 
     match backend:
         case MinerUBackend.PIPELINE:
-            from mineru.backend.pipeline.pipeline_middle_json_mkcontent import (
+            from mineru.backend.pipeline.pipeline_middle_json_mkcontent import (  # noqa: PLC0415
                 union_make,
             )
 
             return union_make
         case MinerUBackend.VLM:
-            from mineru.backend.vlm.vlm_middle_json_mkcontent import union_make
+            from mineru.backend.vlm.vlm_middle_json_mkcontent import (  # noqa: PLC0415
+                union_make,
+            )
 
             return union_make
         case _:
@@ -212,7 +213,7 @@ def _dump_md_content(
     im_dir: Path,
     md_make_mode: str | None = None,
 ) -> ConversionOutput:
-    from mineru.utils.enum_class import MakeMode
+    from mineru.utils.enum_class import MakeMode  # noqa: PLC0415
 
     if md_make_mode is None:
         md_make_mode = MakeMode.MM_MD
