@@ -83,12 +83,6 @@ class DoclingPipelineConfig(PipelineConfig):
         dict["InputFormat", "FormatOption"] | None, AfterValidator(_validate_options)
     ] = Field(default_factory=_default_format_opts)
 
-    _unsupported_input_formats: ClassVar[set["InputFormat"]] = {
-        InputFormat.AUDIO,
-        InputFormat.METS_GBS,
-        InputFormat.VTT,
-    }
-
     @classmethod
     @cache
     def supported_exts(cls) -> set[SupportedExt]:
@@ -97,9 +91,10 @@ class DoclingPipelineConfig(PipelineConfig):
             InputFormat,
         )
 
+        unsupported = {InputFormat.AUDIO, InputFormat.METS_GBS, InputFormat.VTT}
         supported = set()
         for f in InputFormat:
-            if f in cls._unsupported_input_formats:
+            if f in unsupported:
                 continue
             for ext in FormatToExtensions[f]:
                 supported.add(SupportedExt(f".{ext.lower()}"))
@@ -108,7 +103,9 @@ class DoclingPipelineConfig(PipelineConfig):
 
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
-    def __init__(self, format_options: dict[InputFormat, FormatOption] | None = None):
+    def __init__(
+        self, format_options: dict["InputFormat", "FormatOption"] | None = None
+    ):
         from docling.document_converter import DocumentConverter  # noqa: PLC0415
 
         allowed_format = [
@@ -131,7 +128,7 @@ class DoclingPipeline(Pipeline):
         return cls(config.format_options)
 
 
-def _to_docling(docs: Iterable[InputDoc]) -> Iterator[Path | "DocumentStream"]:
+def _to_docling(docs: Iterable[InputDoc]) -> Iterator["Path | DocumentStream"]:
     for d in docs:
         yield d.to_docling()
 
