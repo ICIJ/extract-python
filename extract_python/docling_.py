@@ -3,28 +3,23 @@ import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
 from functools import cache
 from pathlib import Path
-from typing import Any, ClassVar, Literal, TypeVar
+from typing import Annotated, ClassVar, TypeVar
 
-from docling.backend.abstract_backend import AbstractDocumentBackend
-from docling.datamodel.base_models import InputFormat
+from docling.datamodel.base_models import FormatToExtensions, InputFormat
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import (
     EasyOcrOptions,
     PdfPipelineOptions,
     PipelineOptions,
-    VlmPipelineOptions,
 )
-from docling.document_converter import DocumentConverter, FormatOption
-from docling.models.factories import get_ocr_factory
-from docling.pipeline.base_pipeline import BasePipeline
+from docling.document_converter import DocumentConverter, FormatOption, PdfFormatOption
 from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
 from icij_common.registrable import FromConfig
-from pydantic import Field, model_validator
+from pydantic import AfterValidator, Field
 
 from .constants import ARTIFACTS, CPU_GROUP, DEFAULT_MD_PAGE_SEP
 from .objects import (
-    BaseModel,
     Error,
     InputDoc,
     MarkdownDoc,
@@ -40,73 +35,27 @@ from .utils import all_subclasses, chdir, map_and_preserve, path_to_artifacts_di
 DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
 
-class _PdfPipelineOptions(PdfPipelineOptions):
-    generate_picture_images: bool = Field(default=True, frozen=True)
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_ocr_options(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            ocr_options = data.get("ocr_options")
-            if not isinstance(ocr_options, dict):
-                return data
-            allow_external_plugins = ocr_options.get("allow_external_plugins", False)
-            ocr_factory = get_ocr_factory(allow_external_plugins=allow_external_plugins)
-            kind = ocr_options.pop("kind")
-            data["ocr_options"] = ocr_factory.create_options(kind=kind, **ocr_options)
-        return data
+def _validate_pipeline_opts(opts: PipelineOptions) -> None:
+    if isinstance(opts, PdfPipelineOptions) and not opts.generate_picture_images:
+        msg = "generate_picture_images should be set to true"
+        raise ValueError(msg)
 
 
-OptionsByPipeline = list[
-    tuple[Literal["pdf"], _PdfPipelineOptions]
-    | tuple[Literal["vlm"], VlmPipelineOptions]
-]
+def _validate_options(
+    data: dict[InputFormat, FormatOption],
+) -> dict[InputFormat, FormatOption]:
+    for opts in data.values():
+        _validate_pipeline_opts(opts.pipeline_options)
+    return data
 
 
-def _default_pipeline_options() -> OptionsByPipeline:
-    pipeline_options = _PdfPipelineOptions(ocr_options=EasyOcrOptions())
-    return [("pdf", pipeline_options), ("vlm", VlmPipelineOptions())]
-
-
-class DoclingFormatOption(BaseModel):
-    pipeline_cls: str
-    backend_cls: str
-
-    def to_docling(
-        self, pipeline_options: dict[Literal["pdf", "vlm"], PipelineOptions]
-    ) -> FormatOption:
-        pipeline_cls = _find_subcls(BasePipeline, self.pipeline_cls)
-        backend_cls = _find_subcls(AbstractDocumentBackend, self.backend_cls)
-        if "vlm" in self.pipeline_cls.lower():
-            pipeline_options = pipeline_options.get("vlm")
-            if pipeline_options is not None:
-                pipeline_options = VlmPipelineOptions.model_validate(pipeline_options)
-        elif "pdf" in self.pipeline_cls.lower():
-            pipeline_options = pipeline_options.get("pdf")
-            if pipeline_options is not None:
-                pipeline_options = _PdfPipelineOptions.model_validate(pipeline_options)
-        else:
-            raise ValueError(
-                f"invalid pipeline_cls: {pipeline_cls}, expected a VLM or PDF pipeline"
-            )
-        return FormatOption(
-            pipeline_cls=pipeline_cls,
-            pipeline_options=pipeline_options,
-            backend=backend_cls,
+_DEFAULT_FORMAT_OPTS = {
+    InputFormat.PDF: PdfFormatOption(
+        pipeline_options=PdfPipelineOptions(
+            ocr_options=EasyOcrOptions(), generate_picture_images=True
         )
-
-
-@cache
-def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
-    supported_fmt = {InputFormat.PDF}
-    return {
-        fmt: DoclingFormatOption(
-            pipeline_cls=opt.pipeline_cls.__name__, backend_cls=opt.backend.__name__
-        )
-        for fmt, opt in DocumentConverter().format_to_options.items()
-        if fmt in supported_fmt
-    }
-
+    ),
+}
 
 T = TypeVar("T")
 
@@ -123,54 +72,37 @@ class DoclingPipelineConfig(PipelineConfig):
     pipeline: PipelineType = Field(frozen=True, default=PipelineType.DOCLING)
     task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
 
-    pipeline_options: OptionsByPipeline = Field(
-        default_factory=_default_pipeline_options
-    )
-    format_options: dict[InputFormat, DoclingFormatOption] = Field(
-        default_factory=_default_format_options
-    )
+    format_options: Annotated[
+        dict[InputFormat, FormatOption] | None, AfterValidator(_validate_options)
+    ] = _DEFAULT_FORMAT_OPTS
 
-    def to_format_options(self) -> dict[InputFormat, FormatOption]:
-        pipeline_options = dict(self.pipeline_options)
-        return {
-            InputFormat(f): opt.to_docling(pipeline_options)
-            for f, opt in self.format_options.items()
-        }
+    _unsupported_input_formats: ClassVar[set[InputFormat]] = {
+        InputFormat.AUDIO,
+        InputFormat.METS_GBS,
+        InputFormat.VTT,
+    }
 
     @classmethod
     @cache
-    def supported_formats(cls) -> set[SupportedExt]:
-        # Subset of https://docling-project.github.io/docling/usage/supported_formats/
-        return {
-            SupportedExt.ADOC,
-            SupportedExt.ASCIIDOC,
-            SupportedExt.BMP,
-            SupportedExt.CSV,
-            SupportedExt.DOCX,
-            SupportedExt.HTLM,
-            SupportedExt.JPG,
-            SupportedExt.MD,
-            SupportedExt.PDF,
-            SupportedExt.PNG,
-            SupportedExt.PPTX,
-            SupportedExt.TEX,
-            SupportedExt.TIFF,
-            SupportedExt.TXT,
-            SupportedExt.WEBP,
-            SupportedExt.XHTML,
-            SupportedExt.XLSX,
-        }
-
-
-DEFAULT_FORMAT_OPTIONS = DoclingPipelineConfig().to_format_options()
+    def supported_exts(cls) -> set[SupportedExt]:
+        supported = set()
+        for f in InputFormat:
+            if f in cls._unsupported_input_formats:
+                continue
+            for ext in FormatToExtensions[f]:
+                supported.add(SupportedExt(f".{ext.lower()}"))
+        return supported
 
 
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
     def __init__(self, format_options: dict[InputFormat, FormatOption] | None = None):
-        if format_options is None:
-            format_options = DEFAULT_FORMAT_OPTIONS
-        self._converter = DocumentConverter(format_options=format_options)
+        allowed_format = [
+            f.to_docling() for f in DoclingPipelineConfig.supported_exts()
+        ]
+        self._converter = DocumentConverter(
+            allowed_formats=allowed_format, format_options=format_options
+        )
 
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
@@ -182,7 +114,7 @@ class DoclingPipeline(Pipeline):
 
     @classmethod
     def _from_config(cls, config: DoclingPipelineConfig) -> FromConfig:
-        return cls(config.to_format_options())
+        return cls(config.format_options)
 
 
 def _to_docling(docs: Iterable[InputDoc]) -> Iterator[Path | DocumentStream]:

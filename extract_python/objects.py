@@ -21,7 +21,12 @@ from pydantic import AfterValidator, RootModel, TypeAdapter
 from pydantic import BaseModel as _BaseModel
 
 try:
-    from docling.datamodel.base_models import ConversionStatus, ErrorItem, InputFormat
+    from docling.datamodel.base_models import (
+        ConversionStatus,
+        ErrorItem,
+        FormatToExtensions,
+        InputFormat,
+    )
     from docling.datamodel.document import InputDocument
     from docling_core.types.io import DocumentStream
 except ImportError:
@@ -33,42 +38,78 @@ logger = logging.getLogger(__name__)
 base_config = merge_configs(icij_config(), no_enum_values_config())
 
 
+@cache
+def _ext_to_docling_input_format() -> dict:
+    from .docling_ import DoclingPipelineConfig  # noqa: PLC0415
+
+    mapping = dict()
+    supported = DoclingPipelineConfig.supported_exts()
+    for input_f, exts in FormatToExtensions.items():
+        for ext in exts:
+            try:
+                ext = SupportedExt(f".{ext.lower()}")  # noqa: PLW2901
+            except ValueError:
+                continue
+            if ext in supported:
+                mapping[ext] = input_f
+    return mapping
+
+
 class BaseModel(_BaseModel):
     model_config = base_config
 
 
 class SupportedExt(StrEnum):
     ADOC = ".adoc"
+    ASC = ".asc"
     ASCIIDOC = ".asciidoc"
     BMP = ".bmp"
     CSV = ".csv"
     DOC = ".doc"
     DOCX = ".docx"
+    DOTX = ".dotx"
+    DOTM = ".dotm"
+    DOCM = ".docm"
     EPUB = ".epub"
     GIF = ".gif"
     HTLM = ".html"
+    HTM = ".htm"
     JPEG = ".jpeg"
     JPG = ".jpg"
+    JSON = ".json"
+    LATEX = ".latex"
     MD = ".md"
+    NXML = ".nxml"
     ODP = ".odp"
     ODS = ".ods"
     ODT = ".odt"
     PDF = ".pdf"
     PNG = ".png"
+    PPSX = ".ppsx"
     PPT = ".ppt"
+    PPTM = ".pptm"
+    PPSM = ".ppsm"
+    POTX = ".potx"
+    POTM = ".potm"
     PPTX = ".pptx"
+    QMD = ".qmd"
+    RMD = ".rmd"
     TEX = ".tex"
+    TIF = ".tif"
     TIFF = ".tiff"
     TXT = ".txt"
+    TEXT = ".text"
     WEBP = ".webp"
+    XBRL = ".xbrl"
     XHTML = ".xhtml"
     XLS = ".xls"
     XLSM = ".xlsm"
     XLSX = ".xlsx"
     XLTX = ".xltx"
+    XML = ".xml"
 
     def to_docling(self) -> InputFormat:
-        return InputFormat(self.value[1:])
+        return _ext_to_docling_input_format()[self]
 
 
 class OutputFormat(StrEnum):

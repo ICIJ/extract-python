@@ -36,7 +36,7 @@ class MarkerPipelineConfig(PipelineConfig):
 
     @classmethod
     @cache
-    def supported_formats(cls) -> set[SupportedExt]:
+    def supported_exts(cls) -> set[SupportedExt]:
         # Subset of https://documentation.datalab.to/docs/common/supportedfiletypes
         return {
             SupportedExt.PDF,

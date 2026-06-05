@@ -85,7 +85,7 @@ class MinerUPipelineConfig(PipelineConfig):  # noqa: F821
 
     @classmethod
     @cache
-    def supported_formats(cls) -> set[SupportedExt]:
+    def supported_exts(cls) -> set[SupportedExt]:
         return {
             SupportedExt.PDF,
             SupportedExt.DOCX,

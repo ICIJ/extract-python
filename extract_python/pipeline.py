@@ -30,7 +30,7 @@ class PipelineConfig(RegistrableConfig, ABC):
 
     @classmethod
     @abstractmethod
-    def supported_formats(cls) -> set[SupportedExt]: ...
+    def supported_exts(cls) -> set[SupportedExt]: ...
 
 
 class Pipeline(RegistrableFromConfig, ABC):
