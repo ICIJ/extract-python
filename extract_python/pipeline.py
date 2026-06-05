@@ -24,9 +24,7 @@ class PipelineConfig(RegistrableConfig, ABC):
     model_config = merge_configs(icij_config(), no_enum_values_config())
 
     registry_key: ClassVar[str] = Field(frozen=True, default="pipeline")
-    pipeline: PipelineType
-
-    task_group: ClassVar[str] = Field(frozen=True)
+    pipeline: ClassVar[PipelineType]
 
     @classmethod
     @abstractmethod

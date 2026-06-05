@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import Field
 
-from .constants import ARTIFACTS, CPU_GROUP
+from .constants import ARTIFACTS
 from .objects import (
     InputDoc,
     MarkdownDoc,
@@ -25,10 +25,8 @@ if TYPE_CHECKING:
     from PIL import Image
 
 
-@PipelineConfig.register()
 class MarkerPipelineConfig(PipelineConfig):
-    pipeline: PipelineType = Field(frozen=True, default=PipelineType.MARKER)
-    task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
+    pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.MARKER)
 
     config: dict[str, Any] = dict()
 

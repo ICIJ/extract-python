@@ -11,7 +11,7 @@ from typing import Any, ClassVar, Self
 from pydantic import Field
 from pydantic_extra_types.language_code import LanguageAlpha2
 
-from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP, MINER_U_GROUP
+from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .objects import (
     BaseModel,
     ConversionOutput,
@@ -74,10 +74,8 @@ class MinerUConfig(BaseModel):
         }
 
 
-@PipelineConfig.register()  # noqa: F821
 class MinerUPipelineConfig(PipelineConfig):  # noqa: F821
-    pipeline: PipelineType = Field(frozen=True, default=PipelineType.MINER_U)
-    task_group: ClassVar[str] = Field(frozen=True, default=MINER_U_GROUP)
+    pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.MINER_U)
 
     config: MinerUConfig = Field(frozen=True, default=MinerUConfig())
     language: LanguageAlpha2 = Field(frozen=True, default="en")

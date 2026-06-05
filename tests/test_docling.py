@@ -2,8 +2,13 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+from docling.datamodel.backend_options import PdfBackendOptions
+from docling.datamodel.base_models import InputFormat
+from docling.pipeline.legacy_standard_pdf_pipeline import LegacyStandardPdfPipeline
 
 from extract_python import DoclingPipeline, DoclingPipelineConfig, Pipeline
+from extract_python.docling_ import DoclingFormatOption
 from extract_python.objects import InputDoc, OutputFormat, Status
 
 from . import TEST_DATA_DIR
@@ -12,12 +17,39 @@ from . import TEST_DATA_DIR
 @pytest.fixture(scope="session")
 def config() -> DoclingPipelineConfig:
     # TODO: for testing add a lightweight configuration
-    return DoclingPipelineConfig()
+    config = DoclingPipelineConfig()
+    return config
 
 
 @pytest.fixture(scope="session")
 def pipeline(config: DoclingPipelineConfig) -> DoclingPipeline:
     return cast(DoclingPipeline, Pipeline.from_config(config=config))
+
+
+def test_format_option_derser() -> None:
+    # Given
+    config = {
+        "format_options": {
+            "pdf": {
+                "pipeline_cls": "LegacyStandardPdfPipeline",
+                "backend": "PyPdfiumDocumentBackend",
+                "backend_options": {"kind": "pdf"},
+            }
+        }
+    }
+    # When
+    deserialized = DoclingPipelineConfig.model_validate(config)
+    # Then
+    expected = DoclingPipelineConfig(
+        format_options={
+            InputFormat.PDF: DoclingFormatOption(
+                pipeline_cls=LegacyStandardPdfPipeline,
+                backend_options=PdfBackendOptions(),
+                backend=PyPdfiumDocumentBackend,
+            )
+        },
+    )
+    assert deserialized == expected
 
 
 @pytest.mark.integration

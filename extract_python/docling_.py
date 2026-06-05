@@ -1,14 +1,34 @@
+import importlib
 import shutil
 import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, ClassVar, TypeVar
+from typing import Annotated, Any, ClassVar, Self, TypeVar, get_type_hints
 
+from docling.backend.abstract_backend import AbstractDocumentBackend
+from docling.datamodel.backend_options import BackendOptions
+
+# Data model import are quick it's ok to leave it there
+from docling.datamodel.base_models import FormatToExtensions, InputFormat
+from docling.datamodel.document import ConversionResult
+from docling.datamodel.pipeline_options import (
+    EasyOcrOptions,
+    PdfPipelineOptions,
+    PipelineOptions,
+    ThreadedPdfPipelineOptions,
+)
+from docling.document_converter import DocumentConverter, FormatOption
+from docling.pipeline.base_pipeline import BasePipeline
+
+# TODO: this is long to load improve it
+from docling_core.types.doc import ImageRefMode
+from docling_core.types.io import DocumentStream
+from icij_common.pydantic_utils import to_lower_snake_case
 from icij_common.registrable import FromConfig
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, BeforeValidator, Field, model_validator
 
-from .constants import ARTIFACTS, CPU_GROUP, DEFAULT_MD_PAGE_SEP
+from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .objects import (
     Error,
     InputDoc,
@@ -24,73 +44,100 @@ from .utils import all_subclasses, chdir, map_and_preserve, path_to_artifacts_di
 
 DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
-if TYPE_CHECKING:
-    from docling.datamodel.base_models import InputFormat
-    from docling.datamodel.pipeline_options import PipelineOptions
-    from docling.document_converter import ConversionResult, FormatOption
-    from docling_core.types.io import DocumentStream
 
-
-def _validate_pipeline_opts(opts: "PipelineOptions") -> None:
-    from docling.datamodel.pipeline_options import PdfPipelineOptions  # noqa: PLC0415
-
-    if isinstance(opts, PdfPipelineOptions) and not opts.generate_picture_images:
+def _validate_pipeline_opts(v: "PipelineOptions") -> None:
+    if isinstance(v, PdfPipelineOptions) and not v.generate_picture_images:
         msg = "generate_picture_images should be set to true"
         raise ValueError(msg)
-
-
-def _validate_options(
-    data: dict["InputFormat", "FormatOption"],
-) -> dict["InputFormat", "FormatOption"]:
-    for opts in data.values():
-        _validate_pipeline_opts(opts.pipeline_options)
-    return data
-
-
-@cache
-def _default_format_opts() -> dict["InputFormat", "FormatOption"]:
-    from docling.datamodel.pipeline_options import (  # noqa: PLC0415
-        EasyOcrOptions,
-        PdfPipelineOptions,
-    )
-    from docling.document_converter import PdfFormatOption  # noqa: PLC0415
-
-    return {
-        InputFormat.PDF: PdfFormatOption(
-            pipeline_options=PdfPipelineOptions(
-                ocr_options=EasyOcrOptions(), generate_picture_images=True
-            )
-        ),
-    }
+    return v
 
 
 T = TypeVar("T")
 
 
 def _find_subcls(cls: type[T], name: str) -> type[T]:
+    # Check if the class available
     for c in all_subclasses(cls):
         if c.__name__ == name:
             return c
+    # Then apply ad-hoc search
+    if "pipeline" in cls.__name__.lower():
+        module_name = f"docling.pipeline.{to_lower_snake_case(name)}"
+        try:
+            module = importlib.import_module(module_name)
+            return getattr(module, name)
+        except (ModuleNotFoundError, AttributeError):
+            pass
     raise ValueError(f"unknown {cls.__name__} subclass {name}")
 
 
-@PipelineConfig.register()
-class DoclingPipelineConfig(PipelineConfig):
-    pipeline: PipelineType = Field(frozen=True, default=PipelineType.DOCLING)
-    task_group: ClassVar[str] = Field(frozen=True, default=CPU_GROUP)
+def _find_init_arg_type(cls: type[Any], arg: str) -> type:
+    hints = get_type_hints(cls.__init__)
+    return hints[arg].__class__
 
-    format_options: Annotated[
-        dict["InputFormat", "FormatOption"] | None, AfterValidator(_validate_options)
-    ] = Field(default_factory=_default_format_opts)
+
+def _resolve_pipeline_cls(v: Any) -> Any:
+    if isinstance(v, str):
+        return _find_subcls(BasePipeline, v)
+    return v
+
+
+def _resolve_backend(v: Any) -> Any:
+    if isinstance(v, str):
+        return _find_subcls(AbstractDocumentBackend, v)
+    return v
+
+
+class DoclingFormatOption(FormatOption):
+    pipeline_cls: Annotated[
+        str | type[BasePipeline], BeforeValidator(_resolve_pipeline_cls)
+    ]
+    pipeline_options: Annotated[
+        dict | PipelineOptions | None, AfterValidator(_validate_pipeline_opts)
+    ] = None
+    backend: Annotated[
+        str | type[AbstractDocumentBackend], BeforeValidator(_resolve_backend)
+    ]
+    backend_options: BackendOptions | None = None
+
+    @model_validator(mode="after")
+    def _resolve_pipeline_options(self) -> Self:
+        if isinstance(self.pipeline_options, dict):
+            option_cls = _find_init_arg_type(self.pipeline_cls, "pipeline_options")
+            self.pipeline_options = option_cls.model_validate(self.pipeline_options)
+        return self
+
+
+@cache
+def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
+    from docling.backend.docling_parse_backend import (  # noqa: PLC0415
+        DoclingParseDocumentBackend,
+    )
+    from docling.pipeline.standard_pdf_pipeline import (  # noqa: PLC0415
+        StandardPdfPipeline,
+    )
+
+    return {
+        InputFormat.PDF: DoclingFormatOption(
+            pipeline_cls=StandardPdfPipeline,
+            backend=DoclingParseDocumentBackend,
+            pipeline_options=ThreadedPdfPipelineOptions(
+                ocr_options=EasyOcrOptions(), generate_picture_images=True
+            ),
+        ),
+    }
+
+
+class DoclingPipelineConfig(PipelineConfig):
+    pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.DOCLING)
+
+    format_options: dict[InputFormat, DoclingFormatOption | FormatOption] = Field(
+        default_factory=_default_format_opts
+    )
 
     @classmethod
     @cache
     def supported_exts(cls) -> set[SupportedExt]:
-        from docling.datamodel.base_models import (  # noqa: PLC0415
-            FormatToExtensions,
-            InputFormat,
-        )
-
         unsupported = {InputFormat.AUDIO, InputFormat.METS_GBS, InputFormat.VTT}
         supported = set()
         for f in InputFormat:
@@ -106,7 +153,6 @@ class DoclingPipeline(Pipeline):
     def __init__(
         self, format_options: dict["InputFormat", "FormatOption"] | None = None
     ):
-        from docling.document_converter import DocumentConverter  # noqa: PLC0415
 
         allowed_format = [
             f.to_docling() for f in DoclingPipelineConfig.supported_exts()
@@ -134,7 +180,7 @@ def _to_docling(docs: Iterable[InputDoc]) -> Iterator["Path | DocumentStream"]:
 
 
 def _to_result(
-    res: "ConversionResult",
+    res: ConversionResult,
     input_document: InputDoc,
     output_format: OutputFormat,
     output_path: Path,
@@ -155,13 +201,11 @@ def _to_result(
 
 
 def _to_markdown_doc(
-    res: "ConversionResult",
+    res: ConversionResult,
     output_path: Path,
     page_sep: str = DEFAULT_MD_PAGE_SEP,
     **kwargs,
 ) -> MarkdownDoc:
-    from docling_core.types.doc import ImageRefMode  # noqa: PLC0415
-
     # TODO: Should we add a hash to avoid collision between files with same names
     #  nested in the tree structured
     md_dir_name = path_to_artifacts_dirname(res.input.file)
