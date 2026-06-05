@@ -3,18 +3,8 @@ import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
 from functools import cache
 from pathlib import Path
-from typing import Annotated, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Annotated, ClassVar, TypeVar
 
-from docling.datamodel.base_models import FormatToExtensions, InputFormat
-from docling.datamodel.document import ConversionResult
-from docling.datamodel.pipeline_options import (
-    EasyOcrOptions,
-    PdfPipelineOptions,
-    PipelineOptions,
-)
-from docling.document_converter import DocumentConverter, FormatOption, PdfFormatOption
-from docling_core.types.doc import ImageRefMode
-from docling_core.types.io import DocumentStream
 from icij_common.registrable import FromConfig
 from pydantic import AfterValidator, Field
 
@@ -34,28 +24,45 @@ from .utils import all_subclasses, chdir, map_and_preserve, path_to_artifacts_di
 
 DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
+if TYPE_CHECKING:
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import PipelineOptions
+    from docling.document_converter import ConversionResult, FormatOption
+    from docling_core.types.io import DocumentStream
 
-def _validate_pipeline_opts(opts: PipelineOptions) -> None:
+
+def _validate_pipeline_opts(opts: "PipelineOptions") -> None:
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+
     if isinstance(opts, PdfPipelineOptions) and not opts.generate_picture_images:
         msg = "generate_picture_images should be set to true"
         raise ValueError(msg)
 
 
 def _validate_options(
-    data: dict[InputFormat, FormatOption],
-) -> dict[InputFormat, FormatOption]:
+    data: dict["InputFormat", "FormatOption"],
+) -> dict["InputFormat", "FormatOption"]:
     for opts in data.values():
         _validate_pipeline_opts(opts.pipeline_options)
     return data
 
 
-_DEFAULT_FORMAT_OPTS = {
-    InputFormat.PDF: PdfFormatOption(
-        pipeline_options=PdfPipelineOptions(
-            ocr_options=EasyOcrOptions(), generate_picture_images=True
-        )
-    ),
-}
+@cache
+def _default_format_opts() -> dict["InputFormat", "FormatOption"]:
+    from docling.datamodel.pipeline_options import (
+        EasyOcrOptions,
+        PdfPipelineOptions,
+    )
+    from docling.document_converter import PdfFormatOption
+
+    return {
+        InputFormat.PDF: PdfFormatOption(
+            pipeline_options=PdfPipelineOptions(
+                ocr_options=EasyOcrOptions(), generate_picture_images=True
+            )
+        ),
+    }
+
 
 T = TypeVar("T")
 
@@ -74,7 +81,7 @@ class DoclingPipelineConfig(PipelineConfig):
 
     format_options: Annotated[
         dict[InputFormat, FormatOption] | None, AfterValidator(_validate_options)
-    ] = _DEFAULT_FORMAT_OPTS
+    ] = Field(default_factory=_default_format_opts)
 
     _unsupported_input_formats: ClassVar[set[InputFormat]] = {
         InputFormat.AUDIO,
@@ -85,6 +92,8 @@ class DoclingPipelineConfig(PipelineConfig):
     @classmethod
     @cache
     def supported_exts(cls) -> set[SupportedExt]:
+        from docling.datamodel.base_models import FormatToExtensions, InputFormat
+
         supported = set()
         for f in InputFormat:
             if f in cls._unsupported_input_formats:
@@ -97,6 +106,8 @@ class DoclingPipelineConfig(PipelineConfig):
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
     def __init__(self, format_options: dict[InputFormat, FormatOption] | None = None):
+        from docling.document_converter import DocumentConverter
+
         allowed_format = [
             f.to_docling() for f in DoclingPipelineConfig.supported_exts()
         ]
@@ -117,13 +128,13 @@ class DoclingPipeline(Pipeline):
         return cls(config.format_options)
 
 
-def _to_docling(docs: Iterable[InputDoc]) -> Iterator[Path | DocumentStream]:
+def _to_docling(docs: Iterable[InputDoc]) -> Iterator[Path | "DocumentStream"]:
     for d in docs:
         yield d.to_docling()
 
 
 def _to_result(
-    res: ConversionResult,
+    res: "ConversionResult",
     input_document: InputDoc,
     output_format: OutputFormat,
     output_path: Path,
@@ -144,11 +155,13 @@ def _to_result(
 
 
 def _to_markdown_doc(
-    res: ConversionResult,
+    res: "ConversionResult",
     output_path: Path,
     page_sep: str = DEFAULT_MD_PAGE_SEP,
     **kwargs,
 ) -> MarkdownDoc:
+    from docling_core.types.doc import ImageRefMode
+
     # TODO: Should we add a hash to avoid collision between files with same names
     #  nested in the tree structured
     md_dir_name = path_to_artifacts_dirname(res.input.file)

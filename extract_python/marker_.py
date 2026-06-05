@@ -3,14 +3,8 @@ from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
 from functools import cache
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-from marker.config.parser import ConfigParser
-from marker.converters.pdf import PdfConverter
-from marker.models import create_model_dict
-from marker.output import text_from_rendered
-from marker.renderers.markdown import MarkdownRenderer
-from PIL.Image import Image
 from pydantic import Field
 
 from .constants import ARTIFACTS, CPU_GROUP
@@ -25,6 +19,10 @@ from .objects import (
 )
 from .pipeline import Pipeline, PipelineConfig, PipelineType
 from .utils import path_to_artifacts_dirname, report_recoverable_errors
+
+if TYPE_CHECKING:
+    from marker.converters.pdf import PdfConverter
+    from PIL import Image
 
 
 @PipelineConfig.register()
@@ -75,6 +73,10 @@ class MarkerPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
+        from marker.config.parser import ConfigParser
+        from marker.converters.pdf import PdfConverter
+        from marker.models import create_model_dict
+
         config = deepcopy(self._marker_config)
         config["output_format"] = output_format.to_marker()
         config_parser = ConfigParser(config)
@@ -96,10 +98,12 @@ class MarkerPipeline(Pipeline):
 @report_recoverable_errors(_MARKER_CONVERSION_ERRORS)
 def _process_doc(
     doc: InputDoc,
-    converter: PdfConverter,
+    converter: "PdfConverter",
     output_format: OutputFormat,
     output_path: Path,
 ) -> Result:
+    from marker.output import text_from_rendered
+
     rendered = converter(str(doc.path))
     content, _, images = text_from_rendered(rendered)
     match output_format:
@@ -112,8 +116,10 @@ def _process_doc(
 
 
 def _to_markdown_doc(
-    input_doc: InputDoc, content: str, images: dict[str, Image], output_path: Path
+    input_doc: InputDoc, content: str, images: dict[str, "Image"], output_path: Path
 ) -> MarkdownDoc:
+    from marker.renderers.markdown import MarkdownRenderer
+
     # TODO: Should we add a hash to avoid collision between files with same names
     #  nested in the tree structured
     md_dir_name = path_to_artifacts_dirname(input_doc.path)

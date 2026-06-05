@@ -8,12 +8,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, ClassVar, Self
 
-from mineru.backend.pipeline.pipeline_middle_json_mkcontent import (
-    union_make as pipeline_union_make,
-)
-from mineru.backend.vlm.vlm_middle_json_mkcontent import union_make as vlm_union_make
-from mineru.cli.common import aio_do_parse
-from mineru.utils.enum_class import MakeMode
 from pydantic import Field
 from pydantic_extra_types.language_code import LanguageAlpha2
 
@@ -47,32 +41,38 @@ class MinerUConfig(BaseModel):
     # TODO: use enum or literal here
     parse_method: str = "auto"
 
-    default_kwargs: ClassVar[dict] = {
-        "server_url": None,
-        # We don't dump md directly we process, we dump the middle json in order to be
-        # able to get page indexes
-        "parse_method": "auto",
-        "dump_md": False,
-        "dump_middle_json": True,
-        "f_draw_layout_bbox": False,
-        "f_draw_span_bbox": False,
-        "f_dump_model_output": False,  # might be useful for debug though
-        "f_dump_orig_pdf": False,
-        "f_dump_content_list": False,  # might be useful for debug though
-        "start_page_id": 0,
-        "f_make_md_mode": MakeMode.MM_MD,
-        "image_analysis": True,
-        "end_page_id": None,
-        "client_side_output_generation": False,
-    }
-
     def as_parse_kwargs(self) -> dict[str, Any]:
-        kwargs = copy(self.default_kwargs)
+        kwargs = copy(self._get_default_kwargs())
         kwargs["backend"] = self.backend
         kwargs["parse_method"] = self.parse_method
         kwargs["formula_enable"] = self.enable_formula_extraction
         kwargs["table_enable"] = self.enable_table_extraction
         return kwargs
+
+    @classmethod
+    @cache
+    def _get_default_kwargs(cls) -> dict[str, Any]:
+
+        from mineru.utils.enum_class import MakeMode
+
+        return {
+            "server_url": None,
+            # We don't dump md directly we process, we dump the middle json in order to be
+            # able to get page indexes
+            "parse_method": "auto",
+            "dump_md": False,
+            "dump_middle_json": True,
+            "f_draw_layout_bbox": False,
+            "f_draw_span_bbox": False,
+            "f_dump_model_output": False,  # might be useful for debug though
+            "f_dump_orig_pdf": False,
+            "f_dump_content_list": False,  # might be useful for debug though
+            "start_page_id": 0,
+            "f_make_md_mode": MakeMode.MM_MD,
+            "image_analysis": True,
+            "end_page_id": None,
+            "client_side_output_generation": False,
+        }
 
 
 @PipelineConfig.register()  # noqa: F821
@@ -104,6 +104,8 @@ class MinerUPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
+        from mineru.cli.common import aio_do_parse
+
         docs = list(docs)
         # TODO: exclude files which are not pdf and return an error
         pdfs_bytes = [d.path.read_bytes() for d in docs]
@@ -149,11 +151,18 @@ def _revert_mineru_output(output_dir: Path, *, pdf_filename: str) -> Path:
 
 
 def _parse_md_make_fn(backend: MinerUBackend) -> MDMakeFunction:
+
     match backend:
         case MinerUBackend.PIPELINE:
-            return pipeline_union_make
+            from mineru.backend.pipeline.pipeline_middle_json_mkcontent import (
+                union_make,
+            )
+
+            return union_make
         case MinerUBackend.VLM:
-            return vlm_union_make
+            from mineru.backend.vlm.vlm_middle_json_mkcontent import union_make
+
+            return union_make
         case _:
             raise ValueError(f"Unsupported backend: {backend}")
 
@@ -201,8 +210,12 @@ def _dump_md_content(
     output_path: Path,
     md_path: Path,
     im_dir: Path,
-    md_make_mode: str = MakeMode.MM_MD,
+    md_make_mode: str | None = None,
 ) -> ConversionOutput:
+    from mineru.utils.enum_class import MakeMode
+
+    if md_make_mode is None:
+        md_make_mode = MakeMode.MM_MD
     total_length = 0
     end_indices = []
     with md_path.open("w") as f:
