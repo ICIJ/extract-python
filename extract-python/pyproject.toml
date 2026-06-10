@@ -94,4 +94,5 @@ exclude = [
 ]
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0"
+pattern-prefix = "extract-python-"
 pattern = "default-unprefixed"
