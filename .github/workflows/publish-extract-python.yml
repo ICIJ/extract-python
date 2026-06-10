@@ -1,0 +1,45 @@
+name: Publish extra-python
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'extract-python-*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.12
+      ASTRAL_VERSION: 0.11.6
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create GH release
+        run: gh release create "$tag" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+
+  publish-extra-python-to-pypi:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/extract-python
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.8"
+      - name: Install Python 3.12
+        run: uv python install 3.12
+      - name: Build
+        run: cd extract-python && uv build
+      - name: Publish
+        run: cd extract-python && publish
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false

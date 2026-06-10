@@ -1,0 +1,87 @@
+name: Tests extract-python
+
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    paths:
+      - 'extract-core/**'
+      - 'extract-python/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "--version" # skips test by displaying the version
+      - name: Check formatting
+        run: ruff format --config qa/ruff.toml --check extract-python
+      - name: Lint test
+        run: ruff check --config qa/ruff.toml extract-python
+
+  tests-no-miner-u:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.12
+      ASTRAL_VERSION: 0.11.6
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Python project
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.ASTRAL_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - name: Install tesseract
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --fix-missing tesseract-ocr \
+              tesseract-ocr-eng \
+              tesseract-ocr-fra \
+              tesseract-ocr-deu \
+              tesseract-ocr-spa \
+              tesseract-ocr-lat \
+              tesseract-ocr-jpn \
+              libtesseract-dev \
+              libleptonica-dev \
+              pkg-config
+          echo "TESSDATA_PREFIX=$(sudo dpkg -L tesseract-ocr-eng | grep tessdata$)" >> $GITHUB_ENV
+      - name: Run tests
+        run: |
+          cd extract-python
+          uv sync --dev --extra docling --extra marker --frozen
+          uv run --frozen pytest -m "not miner_u" -vvv --cache-clear --show-capture=all -r A tests
+
+  tests-miner-u:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.12
+      ASTRAL_VERSION: 0.11.6
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Python project
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.ASTRAL_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          working-directory: extract-python
+      - name: Run tests
+        run: |
+          cd extract-python
+          uv sync --verbose --dev --extra mineru --frozen
+          uv run --frozen python -m pytest -m "miner_u" -vvv --cache-clear --show-capture=all -r A tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
