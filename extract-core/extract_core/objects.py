@@ -32,6 +32,8 @@ class SupportedExt(StrEnum):
     ASCIIDOC = ".asciidoc"
     BMP = ".bmp"
     CSV = ".csv"
+    DCLG = ".dclg"
+    DCLG_XML = ".dclg.xml"
     DOC = ".doc"
     DOCX = ".docx"
     DOTX = ".dotx"
