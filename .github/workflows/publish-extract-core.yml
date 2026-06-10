@@ -38,7 +38,7 @@ jobs:
       - name: Build
         run: cd extract-core && uv build
       - name: Publish
-        run: cd extract-core && publish
+        run: cd extract-core && uv publish
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
