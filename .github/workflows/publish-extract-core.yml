@@ -9,13 +9,15 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     env:
       PYTHON_VERSION: 3.12
       ASTRAL_VERSION: 0.11.6
     steps:
       - uses: actions/checkout@v6
       - name: Create GH release
-        run: gh auth login && gh release create "$tag" --generate-notes
+        run: gh release create "$tag" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
