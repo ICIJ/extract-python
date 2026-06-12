@@ -135,7 +135,7 @@ def _picture_descr_opts_type_adapter() -> TypeAdapter:
 def _ocr_opts_type_adapter() -> TypeAdapter:
     _OcrOptions = Annotated[  # noqa: N806
         tagged_union(OcrOptions.__subclasses__(), tag_getter=lambda x: x.kind),
-        Discriminator(lambda x: x["kind"]),
+        Discriminator(lambda x: x.pop("kind")),
     ]
     return TypeAdapter(_OcrOptions)
 

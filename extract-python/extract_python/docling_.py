@@ -2,15 +2,18 @@ import shutil
 import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
 from pathlib import Path
+from typing import Any, Self
 
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.document import ConversionResult
-from docling.document_converter import DocumentConverter
+from docling.datamodel.pipeline_options import PipelineOptions
+from docling.document_converter import DocumentConverter, FormatOption
 
 # TODO: this is long to load improve it
 from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
 from extract_core import (
+    BaseModel,
     DoclingFormatOption,
     DoclingPipelineConfig,
     Error,
@@ -23,7 +26,10 @@ from extract_core import (
     Result,
     Status,
 )
+from icij_common.pydantic_utils import merge_configs
 from icij_common.registrable import FromConfig
+from pydantic import ConfigDict, field_serializer
+from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import chdir, map_and_preserve, path_to_artifacts_dirname
@@ -128,3 +134,52 @@ def _to_markdown_doc(
         shutil.move(tmp_dir, md_dir)
     pages = PageIndexes.from_page_end_indices(end_indices)
     return MarkdownDoc(path=Path(md_dir_name), pages=pages)
+
+
+class SerializableFormatOptions(DoclingFormatOption):
+    # Utility class to serialize Python format options into a JSON which can be
+    # correctly deserialized into a docling FormatOption
+    # via DoclingFormatOption.to_docling
+    model_config = merge_configs(
+        BaseModel.model_config, ConfigDict(polymorphic_serialization=True)
+    )
+
+    pipeline_options: PipelineOptions | None = None
+
+    @classmethod
+    def from_docling(cls, format_opts: FormatOption) -> Self:
+        return cls(
+            pipeline_cls=format_opts.pipeline_cls.__name__,
+            pipeline_options=format_opts.pipeline_options,
+            backend=format_opts.backend.__name__,
+            backend_options=format_opts.backend_options,
+        )
+
+    @field_serializer("pipeline_options", mode="wrap")
+    def _serialize_pipeline_opts(
+        self, v: PipelineOptions | None, handler: SerializerFunctionWrapHandler
+    ) -> Any:
+        if v is None:
+            return handler(v)
+        serialized = handler(v)
+        picture_desc_opts = getattr(v, "picture_description_options", None)
+        if picture_desc_opts is not None:
+            if "picture_description_options" not in serialized:
+                serialized["picture_description_options"] = dict()
+            serialized["picture_description_options"]["kind"] = picture_desc_opts.kind
+        ocr_opts = getattr(v, "ocr_options", None)
+        if ocr_opts is not None:
+            if "ocr_options" not in serialized:
+                serialized["ocr_options"] = dict()
+            serialized["ocr_options"]["kind"] = ocr_opts.kind
+        layout_opts = getattr(v, "layout_options", None)
+        if layout_opts is not None:
+            if "layout_options" not in serialized:
+                serialized["layout_options"] = dict()
+            serialized["layout_opts"]["kind"] = layout_opts.kind
+        table_structure_opts = getattr(v, "table_structure_options", None)
+        if table_structure_opts is not None:
+            if "table_structure_options" not in serialized:
+                serialized["table_structure_options"] = dict()
+            serialized["table_structure_options"]["kind"] = table_structure_opts.kind
+        return serialized
