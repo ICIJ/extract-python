@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
@@ -55,7 +56,13 @@ class DoclingPipeline(Pipeline):
     ) -> AsyncGenerator[Result, None]:
         docs, path_or_streams = map_and_preserve(_to_docling, docs)
         outputs = self._converter.convert_all(path_or_streams, raises_on_error=False)
-        for doc, res in zip(docs, outputs, strict=True):
+
+        sentinel = object()
+        while True:
+            res = await asyncio.to_thread(next, outputs, sentinel)
+            if res is sentinel:
+                return
+            doc = next(docs)
             yield _to_result(res, doc, output_format, output_path=output_path)
 
     @classmethod

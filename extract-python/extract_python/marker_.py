@@ -1,3 +1,4 @@
+import asyncio
 import gc
 from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
@@ -86,7 +87,7 @@ class MarkerPipeline(Pipeline):
             renderer=renderer,
         )
         for doc in docs:
-            yield _process_doc(doc, converter, output_format, output_path)
+            yield await _process_doc(doc, converter, output_format, output_path)
 
     @classmethod
     def _from_config(cls, config: MarkerPipelineConfig) -> Self:
@@ -94,7 +95,7 @@ class MarkerPipeline(Pipeline):
 
 
 @report_recoverable_errors(_MARKER_CONVERSION_ERRORS)
-def _process_doc(
+async def _process_doc(
     doc: InputDoc,
     converter: "PdfConverter",
     output_format: OutputFormat,
@@ -102,7 +103,7 @@ def _process_doc(
 ) -> Result:
     from marker.output import text_from_rendered  # noqa: PLC0415
 
-    rendered = converter(str(doc.path))
+    rendered = await asyncio.to_thread(converter, str(doc.path))
     content, _, images = text_from_rendered(rendered)
     match output_format:
         case OutputFormat.MARKDOWN:
