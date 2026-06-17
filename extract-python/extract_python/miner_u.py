@@ -20,7 +20,7 @@ from extract_core import (
     Result,
     Status,
 )
-from objects import Device
+from extract_core.objects import Device
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import path_to_artifacts_dirname, reset_env

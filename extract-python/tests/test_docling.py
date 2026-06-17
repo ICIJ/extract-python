@@ -4,8 +4,6 @@ from typing import cast
 import pytest
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.pipeline_options import VlmConvertOptions, VlmPipelineOptions
-from docling.document_converter import PdfFormatOption
-from docling.pipeline.vlm_pipeline import VlmPipeline
 from extract_core import (
     DoclingFormatOption,
     DoclingPipelineConfig,
@@ -65,6 +63,9 @@ async def test_docling_pdf_to_markdown(
 
 def test_should_serialize_and_deserialize_format_options() -> None:
     # Given
+    from docling.document_converter import PdfFormatOption  # noqa: PLC0415
+    from docling.pipeline.vlm_pipeline import VlmPipeline  # noqa: PLC0415
+
     vlm_options = VlmConvertOptions.from_preset("granite_docling")
     format_opts = PdfFormatOption(
         pipeline_cls=VlmPipeline,
