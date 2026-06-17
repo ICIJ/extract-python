@@ -12,9 +12,9 @@ from extract_core import (
     Pipeline,
     Status,
 )
+from extract_core.objects import Device
 from extract_python import DoclingPipeline
 from extract_python.docling_ import SerializableFormatOptions
-from objects import Device
 
 from . import TEST_DATA_DIR
 
