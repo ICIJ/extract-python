@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 from collections.abc import AsyncGenerator, Callable, Iterable
 from functools import partial
@@ -19,9 +20,10 @@ from extract_core import (
     Result,
     Status,
 )
+from objects import Device
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
-from .utils import path_to_artifacts_dirname
+from .utils import path_to_artifacts_dirname, reset_env
 
 _MINER_U_CONVERSION_ERRORS = tuple()
 MDMakeFunction = Callable[[list, str, str], str | None]
@@ -29,7 +31,10 @@ MDMakeFunction = Callable[[list, str, str], str | None]
 
 @Pipeline.register(PipelineType.MINER_U)
 class MinerUPipeline(Pipeline):
-    def __init__(self, config: MinerUConfig, language: str):
+    def __init__(
+        self, config: MinerUConfig, language: str, *, device: Device = Device.CPU
+    ):
+        super().__init__(device)
         self._config = config
         self._language = language
         self._md_make_fn = _parse_md_make_fn(config.backend)
@@ -39,36 +44,43 @@ class MinerUPipeline(Pipeline):
     ) -> AsyncGenerator[Result, None]:
         from mineru.cli.common import aio_do_parse  # noqa: PLC0415
 
-        docs = list(docs)
-        # TODO: exclude files which are not pdf and return an error
-        pdfs_bytes = [d.path.read_bytes() for d in docs]
-        pdfs_names = [d.path.name for d in docs]
-        p_lang_list = [self._language for _ in pdfs_names]
-        # TODO: we should only process valid PDFs
-        with TemporaryDirectory(prefix="mineru-") as workdir:
-            workdir = Path(workdir)  # noqa: PLW2901
-            await aio_do_parse(
-                output_dir=workdir,
-                pdf_file_names=pdfs_names,
-                pdf_bytes_list=pdfs_bytes,
-                p_lang_list=p_lang_list,
-                **self._config.as_parse_kwargs(),
-            )
-            res_paths = [
-                _revert_mineru_output(workdir, pdf_filename=p) for p in pdfs_names
-            ]
-            for doc, res_path in zip(docs, res_paths, strict=True):
-                yield _process_doc(
-                    doc,
-                    md_make_fn=self._md_make_fn,
-                    res_path=res_path,
-                    output_format=output_format,
-                    output_path=output_path,
+        with reset_env():
+            os.environ["MINERU_DEVICE_MODE"] = self._device
+            docs = list(docs)
+            # TODO: exclude files which are not pdf and return an error
+            pdfs_bytes = [d.path.read_bytes() for d in docs]
+            pdfs_names = [d.path.name for d in docs]
+            p_lang_list = [self._language for _ in pdfs_names]
+            # TODO: we should only process valid PDFs
+            with TemporaryDirectory(prefix="mineru-") as workdir:
+                workdir = Path(workdir)  # noqa: PLW2901
+                await aio_do_parse(
+                    output_dir=workdir,
+                    pdf_file_names=pdfs_names,
+                    pdf_bytes_list=pdfs_bytes,
+                    p_lang_list=p_lang_list,
+                    **self._config.as_parse_kwargs(),
                 )
+                res_paths = [
+                    _revert_mineru_output(workdir, pdf_filename=p) for p in pdfs_names
+                ]
+                for doc, res_path in zip(docs, res_paths, strict=True):
+                    yield _process_doc(
+                        doc,
+                        md_make_fn=self._md_make_fn,
+                        res_path=res_path,
+                        output_format=output_format,
+                        output_path=output_path,
+                    )
 
     @classmethod
-    def _from_config(cls, config: MinerUPipelineConfig) -> Self:
-        return cls(config.config, language=config.language)
+    def _from_config(
+        cls,
+        config: MinerUPipelineConfig,
+        *,
+        device: Device = Device.CPU,
+    ) -> Self:
+        return cls(config.config, language=config.language, device=device)
 
 
 def _revert_mineru_output(output_dir: Path, *, pdf_filename: str) -> Path:

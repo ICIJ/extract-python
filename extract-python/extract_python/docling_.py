@@ -27,6 +27,7 @@ from extract_core import (
     Result,
     Status,
 )
+from extract_core.objects import Device
 from icij_common.pydantic_utils import merge_configs
 from icij_common.registrable import FromConfig
 from pydantic import ConfigDict, field_serializer
@@ -41,9 +42,15 @@ DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "mode
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
     def __init__(
-        self, format_options: dict["InputFormat", DoclingFormatOption] | None = None
+        self,
+        format_options: dict["InputFormat", DoclingFormatOption] | None = None,
+        *,
+        device: Device = Device.CPU,
     ):
-        format_options = {k: v.to_docling() for k, v in format_options.items()}
+        super().__init__(device)
+        format_options = {
+            k: v.to_docling(self._device) for k, v in format_options.items()
+        }
         allowed_format = [
             f.to_docling() for f in DoclingPipelineConfig.supported_exts()
         ]
@@ -66,8 +73,13 @@ class DoclingPipeline(Pipeline):
             yield _to_result(res, doc, output_format, output_path=output_path)
 
     @classmethod
-    def _from_config(cls, config: DoclingPipelineConfig) -> FromConfig:
-        return cls(config.format_options)
+    def _from_config(
+        cls,
+        config: DoclingPipelineConfig,
+        *,
+        device: Device = Device.CPU,
+    ) -> FromConfig:
+        return cls(config.format_options, device=device)
 
 
 def _to_docling(docs: Iterable[InputDoc]) -> Iterator["Path | DocumentStream"]:

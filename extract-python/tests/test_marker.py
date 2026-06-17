@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 from extract_core import (
+    Device,
     InputDoc,
     MarkerPipelineConfig,
     OutputFormat,
@@ -20,8 +21,8 @@ def config() -> MarkerPipelineConfig:
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: MarkerPipelineConfig) -> MarkerPipeline:
-    return cast(MarkerPipeline, Pipeline.from_config(config=config))
+def pipeline(config: MarkerPipelineConfig, device: Device) -> MarkerPipeline:
+    return cast(MarkerPipeline, Pipeline.from_config(config=config, device=device))
 
 
 @pytest.mark.integration

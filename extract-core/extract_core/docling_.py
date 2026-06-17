@@ -35,7 +35,7 @@ from pydantic import (
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .configs import BasePipelineConfig, PipelineType
-from .objects import BaseModel, SupportedExt
+from .objects import BaseModel, Device, SupportedExt
 from .utils import all_subclasses
 
 
@@ -161,7 +161,9 @@ def _table_structure_opts_type_adapter() -> TypeAdapter:
 
 
 def _resolve_pipeline_options(
-    pipeline_options: dict[str, Any] | None | PipelineOptions, pipeline_cls: type
+    pipeline_options: dict[str, Any] | None | PipelineOptions,
+    pipeline_cls: type,
+    device: Device,
 ) -> PipelineOptions:
     option_cls = _find_init_arg_type(pipeline_cls, "pipeline_options")
     picture_descr_opts = pipeline_options.get("picture_description_options")
@@ -198,6 +200,8 @@ def _resolve_pipeline_options(
         )
         pipeline_options["table_structure_options"] = table_structure_opts
     pipeline_options = option_cls.model_validate(pipeline_options)
+    if isinstance(pipeline_options, PipelineOptions):
+        pipeline_options.accelerator_options.device = device.to_docling()
     return pipeline_options
 
 
@@ -214,11 +218,13 @@ class DoclingFormatOption(BaseFormatOption):
     pipeline_cls: str
     pipeline_options: dict[str, Any] | None = None
 
-    def to_docling(self) -> BaseFormatOption:  # noqa: ANN201
+    def to_docling(self, device: Device) -> BaseFormatOption:  # noqa: ANN201
         from docling.document_converter import FormatOption  # noqa: PLC0415
 
         pipeline_cls = _resolve_pipeline_cls(self.pipeline_cls)
-        pipeline_opts = _resolve_pipeline_options(self.pipeline_options, pipeline_cls)
+        pipeline_opts = _resolve_pipeline_options(
+            self.pipeline_options, pipeline_cls, device
+        )
         pipeline_opts = _validate_pipeline_opts(pipeline_opts)
         return FormatOption(
             pipeline_cls=pipeline_cls,

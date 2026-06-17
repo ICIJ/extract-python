@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 from extract_core import (
+    Device,
     InputDoc,
     MinerUPipelineConfig,
     OutputFormat,
@@ -20,8 +21,8 @@ def config() -> MinerUPipelineConfig:
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: MinerUPipelineConfig) -> MinerUPipeline:
-    return cast(MinerUPipelineConfig, Pipeline.from_config(config=config))
+def pipeline(config: MinerUPipelineConfig, device: Device) -> MinerUPipeline:
+    return cast(MinerUPipeline, Pipeline.from_config(config=config, device=device))
 
 
 @pytest.mark.miner_u

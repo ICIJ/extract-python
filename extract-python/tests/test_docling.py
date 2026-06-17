@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.pipeline_options import VlmConvertOptions, VlmPipelineOptions
 from docling.document_converter import PdfFormatOption
 from docling.pipeline.vlm_pipeline import VlmPipeline
@@ -15,6 +16,7 @@ from extract_core import (
 )
 from extract_python import DoclingPipeline
 from extract_python.docling_ import SerializableFormatOptions
+from objects import Device
 
 from . import TEST_DATA_DIR
 
@@ -27,8 +29,8 @@ def config() -> DoclingPipelineConfig:
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: DoclingPipelineConfig) -> DoclingPipeline:
-    return cast(DoclingPipeline, Pipeline.from_config(config=config))
+def pipeline(config: DoclingPipelineConfig, device: Device) -> DoclingPipeline:
+    return cast(DoclingPipeline, Pipeline.from_config(config=config, device=device))
 
 
 @pytest.mark.integration
@@ -67,7 +69,9 @@ def test_should_serialize_and_deserialize_format_options() -> None:
     format_opts = PdfFormatOption(
         pipeline_cls=VlmPipeline,
         pipeline_options=VlmPipelineOptions(
-            vlm_options=vlm_options, generate_picture_images=True
+            vlm_options=vlm_options,
+            generate_picture_images=True,
+            accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
         ),
     )
     serializable = SerializableFormatOptions.from_docling(format_opts)
@@ -75,4 +79,4 @@ def test_should_serialize_and_deserialize_format_options() -> None:
     serialized = serializable.model_dump(polymorphic_serialization=True)
     # Then
     deserialized = DoclingFormatOption.model_validate(serialized)
-    assert deserialized.to_docling().model_dump() == format_opts.model_dump()
+    assert deserialized.to_docling(Device.CPU).model_dump() == format_opts.model_dump()

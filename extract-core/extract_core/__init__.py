@@ -7,6 +7,7 @@ from .configs import BasePipelineConfig, PipelineType
 from .objects import (
     BaseModel,
     ConversionOutput,
+    Device,
     Error,
     InputDoc,
     MarkdownDoc,
@@ -46,6 +47,7 @@ __all__ = [
     "BaseModel",
     "BasePipelineConfig",
     "ConversionOutput",
+    "Device",
     "DoclingPipelineConfig",
     "Error",
     "InputDoc",

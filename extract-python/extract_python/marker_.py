@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from extract_core import BasePipelineConfig, Pipeline, PipelineType
 from extract_core.objects import (
+    Device,
     InputDoc,
     MarkdownDoc,
     OutputFormat,
@@ -64,7 +65,13 @@ _MARKER_CONVERSION_ERRORS = tuple()
 
 @Pipeline.register(PipelineType.MARKER)
 class MarkerPipeline(Pipeline):
-    def __init__(self, marker_config: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        marker_config: dict[str, Any] | None = None,
+        *,
+        device: Device = Device.CPU,
+    ):
+        super().__init__(device)
         if marker_config is None:
             marker_config = dict()
         self._marker_config = marker_config
@@ -82,7 +89,7 @@ class MarkerPipeline(Pipeline):
         renderer = config_parser.get_renderer()
         converter = PdfConverter(
             config=config_parser.generate_config_dict(),
-            artifact_dict=create_model_dict(),
+            artifact_dict=create_model_dict(device=self._device),
             processor_list=config_parser.get_processors(),
             renderer=renderer,
         )
@@ -90,8 +97,13 @@ class MarkerPipeline(Pipeline):
             yield await _process_doc(doc, converter, output_format, output_path)
 
     @classmethod
-    def _from_config(cls, config: MarkerPipelineConfig) -> Self:
-        return cls(config.config)
+    def _from_config(
+        cls,
+        config: MarkerPipelineConfig,
+        *,
+        device: Device = Device.CPU,
+    ) -> Self:
+        return cls(config.config, device=device)
 
 
 @report_recoverable_errors(_MARKER_CONVERSION_ERRORS)

@@ -1,6 +1,7 @@
 import os
 from collections.abc import Callable, Generator, Iterable, Iterator
 from contextlib import contextmanager
+from copy import copy
 from functools import wraps
 from itertools import tee
 from pathlib import Path, PurePath
@@ -62,3 +63,13 @@ def chdir(path: Path) -> Generator[None, None, None]:
         yield
     finally:
         os.chdir(cwd)
+
+
+@contextmanager
+def reset_env() -> Generator[None, None, None]:
+    old_env = copy(dict(os.environ))
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)

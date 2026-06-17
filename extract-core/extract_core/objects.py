@@ -9,6 +9,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Any, NoReturn, Self
 
+from docling.datamodel.accelerator_options import AcceleratorDevice
 from icij_common.pydantic_utils import (
     icij_config,
     merge_configs,
@@ -24,6 +25,23 @@ base_config = merge_configs(icij_config(), no_enum_values_config())
 
 class BaseModel(_BaseModel):
     model_config = base_config
+
+
+class Device(StrEnum):
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
+
+    def to_docling(self) -> AcceleratorDevice:
+        match self:
+            case Device.CUDA:
+                return AcceleratorDevice.CPU
+            case Device.MPS:
+                return AcceleratorDevice.MPS
+            case Device.CPU:
+                return AcceleratorDevice.CPU
+            case _:
+                raise ValueError(f"unsupported device {self}")
 
 
 class SupportedExt(StrEnum):

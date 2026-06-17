@@ -1,11 +1,19 @@
 import os
+import platform
 import shutil
 from pathlib import Path
 
 import pytest
-from extract_core import InputDoc
+from extract_core import Device, InputDoc
 
 from tests import TEST_DATA_DIR
+
+
+@pytest.fixture(scope="session")
+def device() -> Device:
+    if "darwin" in platform.system().lower():
+        return Device.MPS
+    return Device.CPU
 
 
 @pytest.fixture(scope="session")
