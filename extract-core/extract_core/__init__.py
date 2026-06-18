@@ -20,17 +20,17 @@ from .pipeline import Pipeline
 
 try:
     from .docling_ import DoclingFormatOption, DoclingPipelineConfig
-except ImportError:
+except ModuleNotFoundError:
     DoclingPipelineConfig, DoclingFormatOption = None, None
 try:
     from .marker_ import MarkerPipelineConfig
-except ImportError:
+except ModuleNotFoundError:
     MarkerPipelineConfig = None
 
 
 try:
     from .miner_u import MinerUBackend, MinerUConfig, MinerUPipelineConfig
-except ImportError:
+except ModuleNotFoundError:
     MinerUBackend, MinerUPipelineConfig, MinerUConfig = None, None, None
 
 
