@@ -6,13 +6,15 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-from extract_core import BasePipelineConfig, Pipeline, PipelineType
-from extract_core.objects import (
+from extract_core import (
+    BasePipelineConfig,
     Device,
     InputDoc,
     MarkdownDoc,
     OutputFormat,
     PageIndexes,
+    Pipeline,
+    PipelineType,
     Result,
     Status,
     SupportedExt,

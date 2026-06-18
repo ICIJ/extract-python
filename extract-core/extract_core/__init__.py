@@ -15,6 +15,7 @@ from .objects import (
     PageIndexes,
     Result,
     Status,
+    SupportedExt,
 )
 from .pipeline import Pipeline
 
@@ -62,4 +63,5 @@ __all__ = [
     "PipelineType",
     "Result",
     "Status",
+    "SupportedExt",
 ]

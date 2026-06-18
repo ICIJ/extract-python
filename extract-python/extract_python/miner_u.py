@@ -9,6 +9,7 @@ from typing import Self
 
 from extract_core import (
     ConversionOutput,
+    Device,
     InputDoc,
     MinerUBackend,
     MinerUConfig,
@@ -20,7 +21,6 @@ from extract_core import (
     Result,
     Status,
 )
-from extract_core.objects import Device
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import path_to_artifacts_dirname, reset_env

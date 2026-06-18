@@ -15,6 +15,7 @@ from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
 from extract_core import (
     BaseModel,
+    Device,
     DoclingFormatOption,
     DoclingPipelineConfig,
     Error,
@@ -27,7 +28,6 @@ from extract_core import (
     Result,
     Status,
 )
-from extract_core.objects import Device
 from icij_common.pydantic_utils import merge_configs
 from icij_common.registrable import FromConfig
 from pydantic import ConfigDict, field_serializer
