@@ -161,11 +161,13 @@ def _table_structure_opts_type_adapter() -> TypeAdapter:
 
 
 def _resolve_pipeline_options(
-    pipeline_options: dict[str, Any] | None | PipelineOptions,
+    pipeline_options: dict[str, Any] | None,
     pipeline_cls: type,
     device: Device,
 ) -> PipelineOptions:
     option_cls = _find_init_arg_type(pipeline_cls, "pipeline_options")
+    if pipeline_options is None:
+        pipeline_options = {"generate_picture_images": True}
     picture_descr_opts = pipeline_options.get("picture_description_options")
     if picture_descr_opts is not None:
         if "kind" not in picture_descr_opts:
@@ -200,7 +202,11 @@ def _resolve_pipeline_options(
         )
         pipeline_options["table_structure_options"] = table_structure_opts
     pipeline_options = option_cls.model_validate(pipeline_options)
-    if isinstance(pipeline_options, PipelineOptions):
+    accelerator_opts = getattr(pipeline_options, "accelerator_options", None)
+    if accelerator_opts is not None:
+        accelerator_opts.device = device.to_docling()
+        if device is Device.CUDA:
+            accelerator_opts.cuda_use_flash_attention2 = True
         pipeline_options.accelerator_options.device = device.to_docling()
     return pipeline_options
 

@@ -35,7 +35,7 @@ class Device(StrEnum):
     def to_docling(self) -> AcceleratorDevice:
         match self:
             case Device.CUDA:
-                return AcceleratorDevice.CPU
+                return AcceleratorDevice.CUDA
             case Device.MPS:
                 return AcceleratorDevice.MPS
             case Device.CPU:

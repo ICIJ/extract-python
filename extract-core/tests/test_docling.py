@@ -1,6 +1,7 @@
+from docling.datamodel.accelerator_options import AcceleratorDevice
 from docling.datamodel.backend_options import PdfBackendOptions
 from docling.datamodel.base_models import InputFormat
-from extract_core import DoclingFormatOption, DoclingPipelineConfig
+from extract_core import Device, DoclingFormatOption, DoclingPipelineConfig
 
 
 def test_format_option_derser() -> None:
@@ -44,3 +45,17 @@ def test_format_option_ser() -> None:
     serialized = config.model_dump_json(indent=2)
     deserialized = DoclingPipelineConfig.model_validate_json(serialized)
     assert deserialized == config
+
+
+def test_docling_format_options_should_resolve_gpu_accelerator() -> None:
+    # Given
+    device = Device.CUDA
+    format_opts = DoclingFormatOption(
+        backend="PdfDocumentBackend", pipeline_cls="VlmPipeline"
+    )
+    # When
+    as_docling = format_opts.to_docling(device)
+    # Then
+    accelerator_opts = as_docling.pipeline_options.accelerator_options
+    assert accelerator_opts.device is AcceleratorDevice.CUDA
+    assert accelerator_opts.cuda_use_flash_attention2 is True
