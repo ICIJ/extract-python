@@ -1,7 +1,10 @@
 import asyncio
+import json
+import logging
 import shutil
 import tempfile
 from collections.abc import AsyncGenerator, Iterable, Iterator
+from functools import partial
 from pathlib import Path
 from typing import Any, Self
 
@@ -36,6 +39,8 @@ from pydantic_core.core_schema import SerializerFunctionWrapHandler
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import chdir, map_and_preserve, path_to_artifacts_dirname
 
+logger = logging.getLogger(__name__)
+
 DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "models")
 
 
@@ -48,9 +53,13 @@ class DoclingPipeline(Pipeline):
         device: Device = Device.CPU,
     ):
         super().__init__(device)
-        format_options = {
-            k: v.to_docling(self._device) for k, v in format_options.items()
-        }
+        format_options = dict()
+        for k, v in format_options.items():
+            format_options[k] = v.to_docling(self._device)
+        logger.info(
+            "resolved format options to: %s",
+            lambda: partial(json.dumps, format_options, indent=2),
+        )
         allowed_format = [
             f.to_docling() for f in DoclingPipelineConfig.supported_exts()
         ]
