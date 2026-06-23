@@ -53,9 +53,9 @@ class DoclingPipeline(Pipeline):
         device: Device = Device.CPU,
     ):
         super().__init__(device)
-        format_options = dict()
-        for k, v in format_options.items():
-            format_options[k] = v.to_docling(self._device)
+        format_options = {
+            k: v.to_docling(self._device) for k, v in format_options.items()
+        }
         logger.info(
             "resolved format options to: %s",
             lambda: partial(json.dumps, format_options, indent=2),
