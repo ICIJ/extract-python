@@ -205,9 +205,7 @@ def _resolve_pipeline_options(
     accelerator_opts = getattr(pipeline_options, "accelerator_options", None)
     if accelerator_opts is not None:
         accelerator_opts.device = device.to_docling()
-        if device is Device.CUDA:
-            accelerator_opts.cuda_use_flash_attention2 = True
-        pipeline_options.accelerator_options.device = device.to_docling()
+        pipeline_options.accelerator_options = accelerator_opts
     return pipeline_options
 
 

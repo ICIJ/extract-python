@@ -58,4 +58,3 @@ def test_docling_format_options_should_resolve_gpu_accelerator() -> None:
     # Then
     accelerator_opts = as_docling.pipeline_options.accelerator_options
     assert accelerator_opts.device is AcceleratorDevice.CUDA
-    assert accelerator_opts.cuda_use_flash_attention2 is True
