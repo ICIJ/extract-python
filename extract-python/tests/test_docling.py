@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import VlmConvertOptions, VlmPipelineOptions
 from extract_core import (
     DoclingFormatOption,
@@ -19,15 +20,15 @@ from . import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config() -> DoclingPipelineConfig:
+def config(device: Device) -> DoclingPipelineConfig:
     # TODO: for testing add a lightweight configuration
-    config = DoclingPipelineConfig()
+    config = DoclingPipelineConfig(device=device)
     return config
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: DoclingPipelineConfig, device: Device) -> DoclingPipeline:
-    return cast(DoclingPipeline, Pipeline.from_config(config=config, device=device))
+def pipeline(config: DoclingPipelineConfig) -> DoclingPipeline:
+    return cast(DoclingPipeline, Pipeline.from_config(config=config))
 
 
 @pytest.mark.integration
@@ -81,3 +82,20 @@ def test_should_serialize_and_deserialize_format_options() -> None:
     # Then
     deserialized = DoclingFormatOption.model_validate(serialized)
     assert deserialized.to_docling(Device.CPU).model_dump() == format_opts.model_dump()
+
+
+def test_should_configure_pipeline_with_cuda_accelerator() -> None:
+    # Given
+    format_opts = DoclingFormatOption(
+        backend="PdfDocumentBackend", pipeline_cls="VlmPipeline"
+    )
+    format_options = {InputFormat.PDF: format_opts}
+    pipeline_config = DoclingPipelineConfig(
+        format_options=format_options, device=Device.CUDA
+    )
+    # When
+    pipeline = Pipeline.from_config(pipeline_config)
+    # Then
+    pipeline_format_opts = pipeline._converter.format_to_options[InputFormat.PDF]
+    pipeline_device = pipeline_format_opts.pipeline_options.accelerator_options.device
+    assert pipeline_device is AcceleratorDevice.CUDA

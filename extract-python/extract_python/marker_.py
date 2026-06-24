@@ -2,13 +2,10 @@ import asyncio
 import gc
 from collections.abc import AsyncGenerator, Iterable
 from copy import deepcopy
-from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING
 
 from extract_core import (
-    BasePipelineConfig,
-    Device,
     InputDoc,
     MarkdownDoc,
     OutputFormat,
@@ -17,9 +14,7 @@ from extract_core import (
     PipelineType,
     Result,
     Status,
-    SupportedExt,
 )
-from pydantic import Field
 
 from .constants import ARTIFACTS
 from .utils import path_to_artifacts_dirname, report_recoverable_errors
@@ -29,55 +24,11 @@ if TYPE_CHECKING:
     from PIL import Image
 
 
-class MarkerPipelineConfig(BasePipelineConfig):
-    pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.MARKER)
-
-    config: dict[str, Any] = Field(default_factory=dict)
-
-    @classmethod
-    @cache
-    def supported_exts(cls) -> set[SupportedExt]:
-        # Subset of https://documentation.datalab.to/docs/common/supportedfiletypes
-        return {
-            SupportedExt.PDF,
-            SupportedExt.XLS,
-            SupportedExt.XLSX,
-            SupportedExt.XLSM,
-            SupportedExt.CSV,
-            SupportedExt.ODS,
-            SupportedExt.DOC,
-            SupportedExt.DOCX,
-            SupportedExt.ODT,
-            SupportedExt.PPT,
-            SupportedExt.PPTX,
-            SupportedExt.ODP,
-            SupportedExt.HTLM,
-            SupportedExt.EPUB,
-            SupportedExt.PNG,
-            SupportedExt.JPG,
-            SupportedExt.JPEG,
-            SupportedExt.WEBP,
-            SupportedExt.GIF,
-            SupportedExt.TIFF,
-        }
-
-
 _MARKER_CONVERSION_ERRORS = tuple()
 
 
 @Pipeline.register(PipelineType.MARKER)
 class MarkerPipeline(Pipeline):
-    def __init__(
-        self,
-        marker_config: dict[str, Any] | None = None,
-        *,
-        device: Device = Device.CPU,
-    ):
-        super().__init__(device)
-        if marker_config is None:
-            marker_config = dict()
-        self._marker_config = marker_config
-
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
@@ -85,7 +36,7 @@ class MarkerPipeline(Pipeline):
         from marker.converters.pdf import PdfConverter  # noqa: PLC0415
         from marker.models import create_model_dict  # noqa: PLC0415
 
-        config = deepcopy(self._marker_config)
+        config = deepcopy(self._config.config)
         config["output_format"] = output_format.to_marker()
         config_parser = ConfigParser(config)
         renderer = config_parser.get_renderer()
@@ -97,15 +48,6 @@ class MarkerPipeline(Pipeline):
         )
         for doc in docs:
             yield await _process_doc(doc, converter, output_format, output_path)
-
-    @classmethod
-    def _from_config(
-        cls,
-        config: MarkerPipelineConfig,
-        *,
-        device: Device = Device.CPU,
-    ) -> Self:
-        return cls(config.config, device=device)
 
 
 @report_recoverable_errors(_MARKER_CONVERSION_ERRORS)

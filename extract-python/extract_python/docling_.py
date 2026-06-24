@@ -8,7 +8,6 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Self
 
-from docling.datamodel.base_models import InputFormat
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import PipelineOptions
 from docling.document_converter import DocumentConverter, FormatOption
@@ -18,7 +17,6 @@ from docling_core.types.doc import ImageRefMode
 from docling_core.types.io import DocumentStream
 from extract_core import (
     BaseModel,
-    Device,
     DoclingFormatOption,
     DoclingPipelineConfig,
     Error,
@@ -32,7 +30,6 @@ from extract_core import (
     Status,
 )
 from icij_common.pydantic_utils import merge_configs
-from icij_common.registrable import FromConfig
 from pydantic import ConfigDict, field_serializer
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
@@ -46,15 +43,11 @@ DOCLING_DEFAULT_ARTIFACTS_PATH = Path.home().joinpath(".cache", "docling", "mode
 
 @Pipeline.register(PipelineType.DOCLING)
 class DoclingPipeline(Pipeline):
-    def __init__(
-        self,
-        format_options: dict["InputFormat", DoclingFormatOption] | None = None,
-        *,
-        device: Device = Device.CPU,
-    ):
-        super().__init__(device)
+    def __init__(self, config: DoclingPipelineConfig):
+        super().__init__(config)
         format_options = {
-            k: v.to_docling(self._device) for k, v in format_options.items()
+            k: v.to_docling(self._device)
+            for k, v in self._config.format_options.items()
         }
         logger.info(
             "resolved format options to: %s",
@@ -80,15 +73,6 @@ class DoclingPipeline(Pipeline):
                 return
             doc = next(docs)
             yield _to_result(res, doc, output_format, output_path=output_path)
-
-    @classmethod
-    def _from_config(
-        cls,
-        config: DoclingPipelineConfig,
-        *,
-        device: Device = Device.CPU,
-    ) -> FromConfig:
-        return cls(config.format_options, device=device)
 
 
 def _to_docling(docs: Iterable[InputDoc]) -> Iterator["Path | DocumentStream"]:

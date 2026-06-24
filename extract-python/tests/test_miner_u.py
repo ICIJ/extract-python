@@ -16,13 +16,13 @@ from tests import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config() -> MinerUPipelineConfig:
-    return MinerUPipelineConfig()
+def config(device: Device) -> MinerUPipelineConfig:
+    return MinerUPipelineConfig(device=device)
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: MinerUPipelineConfig, device: Device) -> MinerUPipeline:
-    return cast(MinerUPipeline, Pipeline.from_config(config=config, device=device))
+def pipeline(config: MinerUPipelineConfig) -> MinerUPipeline:
+    return cast(MinerUPipeline, Pipeline.from_config(config=config))
 
 
 @pytest.mark.miner_u

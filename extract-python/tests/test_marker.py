@@ -16,13 +16,13 @@ from tests import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config() -> MarkerPipelineConfig:
-    return MarkerPipelineConfig()
+def config(device: Device) -> MarkerPipelineConfig:
+    return MarkerPipelineConfig(device=device)
 
 
 @pytest.fixture(scope="session")
-def pipeline(config: MarkerPipelineConfig, device: Device) -> MarkerPipeline:
-    return cast(MarkerPipeline, Pipeline.from_config(config=config, device=device))
+def pipeline(config: MarkerPipelineConfig) -> MarkerPipeline:
+    return cast(MarkerPipeline, Pipeline.from_config(config=config))
 
 
 @pytest.mark.integration

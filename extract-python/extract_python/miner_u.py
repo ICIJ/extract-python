@@ -5,14 +5,11 @@ from collections.abc import AsyncGenerator, Callable, Iterable
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Self
 
 from extract_core import (
     ConversionOutput,
-    Device,
     InputDoc,
     MinerUBackend,
-    MinerUConfig,
     MinerUPipelineConfig,
     OutputFormat,
     PageIndexes,
@@ -31,13 +28,10 @@ MDMakeFunction = Callable[[list, str, str], str | None]
 
 @Pipeline.register(PipelineType.MINER_U)
 class MinerUPipeline(Pipeline):
-    def __init__(
-        self, config: MinerUConfig, language: str, *, device: Device = Device.CPU
-    ):
-        super().__init__(device)
-        self._config = config
-        self._language = language
-        self._md_make_fn = _parse_md_make_fn(config.backend)
+    def __init__(self, config: MinerUPipelineConfig):
+        super().__init__(config)
+        self._language = self._config.language
+        self._md_make_fn = _parse_md_make_fn(self._config.config.backend)
 
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
@@ -59,7 +53,7 @@ class MinerUPipeline(Pipeline):
                     pdf_file_names=pdfs_names,
                     pdf_bytes_list=pdfs_bytes,
                     p_lang_list=p_lang_list,
-                    **self._config.as_parse_kwargs(),
+                    **self._config.config.as_parse_kwargs(),
                 )
                 res_paths = [
                     _revert_mineru_output(workdir, pdf_filename=p) for p in pdfs_names
@@ -72,15 +66,6 @@ class MinerUPipeline(Pipeline):
                         output_format=output_format,
                         output_path=output_path,
                     )
-
-    @classmethod
-    def _from_config(
-        cls,
-        config: MinerUPipelineConfig,
-        *,
-        device: Device = Device.CPU,
-    ) -> Self:
-        return cls(config.config, language=config.language, device=device)
 
 
 def _revert_mineru_output(output_dir: Path, *, pdf_filename: str) -> Path:

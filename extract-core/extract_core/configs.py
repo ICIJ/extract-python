@@ -6,7 +6,7 @@ from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_value
 from icij_common.registrable import RegistrableConfig
 from pydantic import Field
 
-from .objects import SupportedExt
+from .objects import Device, SupportedExt
 
 
 class PipelineType(StrEnum):
@@ -20,7 +20,9 @@ class BasePipelineConfig(RegistrableConfig, ABC):
     model_config = merge_configs(icij_config(), no_enum_values_config())
 
     registry_key: ClassVar[str] = Field(frozen=True, default="pipeline")
+
     pipeline: ClassVar[PipelineType]
+    device: Device = Device.CPU
 
     @classmethod
     @abstractmethod
