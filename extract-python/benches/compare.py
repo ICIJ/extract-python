@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 
 import markdown2
 import pypdfium2
-from extract_core import BaseModel, OutputFormat, PageIndexes
+from extract_core import BaseModel, OutputFormat, Pages
 from extract_python.utils import chdir
 from html2image import Html2Image
 from PIL import Image, ImageDraw
@@ -93,7 +93,7 @@ def side_by_side_md_page_comp(
     if len(md_files) != 1:
         msg = f"unexpected number of md files ({len(md_files)}) in {compared_path}"
         raise ValueError(msg)
-    md_content = md_files[0].read_text()[page_ix[0] : page_ix[1]]
+    md_content = (md_files[0].read_bytes()[page_ix[0] : page_ix[1]]).decode()
     # change the current dir so that the browser renders images properly
     with chdir(compared_path):
         md_page_im = _render_md(md_content, compared_path, html_size=ref_im.size)
@@ -140,9 +140,9 @@ def _scan_pages(
     root: Path, comparison: ComparisonItem
 ) -> list[dict[str, tuple[int, int]]]:
     all_pages = [
-        PageIndexes.model_validate_json(
+        Pages.model_validate_json(
             (root / compared / "artifacts" / "pages.json").read_text()
-        ).root
+        )
         for compared in comparison.compared
     ]
     all_pages = zip(*all_pages, strict=True)

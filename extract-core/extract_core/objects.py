@@ -3,6 +3,7 @@ import os
 import traceback
 import uuid
 from abc import ABC
+from collections.abc import Sequence
 from enum import StrEnum
 from functools import cache
 from io import BytesIO
@@ -16,7 +17,7 @@ from icij_common.pydantic_utils import (
     no_enum_values_config,
     safe_copy,
 )
-from pydantic import AfterValidator, RootModel, TypeAdapter
+from pydantic import AfterValidator, Field, TypeAdapter
 from pydantic import BaseModel as _BaseModel
 
 logger = logging.getLogger(__name__)
@@ -203,18 +204,25 @@ class InputDoc(BaseModel):
         return safe_copy(self, update={"content": None})
 
 
-class PageIndexes(RootModel[list[tuple[int, int]]]):
-    # Stores page end index
+Ranges = list[tuple[int, int]]
+
+
+class Pages(BaseModel):
+    total: int = 0
+    byte_ranges: Ranges = []
+
     @classmethod
-    def from_page_end_indices(cls, lengths: list[int]) -> Self:
-        return [
-            ((lengths[p - 1] if p > 0 else 0), lengths[p]) for p in range(len(lengths))
-        ]
+    def from_pages_bytes_sizes(cls, sizes: Sequence[int]) -> Self:
+        bytes_ranges = []
+        for p, end in enumerate(sizes):
+            start = 0 if p == 0 else bytes_ranges[-1][1]
+            bytes_ranges.append((start, start + end))
+        return cls(total=len(sizes), byte_ranges=bytes_ranges)
 
 
 class ConversionOutput(BaseModel):
     path: Path
-    pages: PageIndexes = []
+    pages: Pages = Field(default_factory=Pages)
 
 
 class MarkdownDoc(ConversionOutput):
