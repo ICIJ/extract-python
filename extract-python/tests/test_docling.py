@@ -14,7 +14,6 @@ from extract_core import (
 )
 from extract_core.objects import Device
 from extract_python import DoclingPipeline
-from extract_python.docling_ import SerializableFormatOptions
 
 from . import TEST_DATA_DIR
 
@@ -65,6 +64,7 @@ def test_should_serialize_and_deserialize_format_options() -> None:
     # Given
     from docling.document_converter import PdfFormatOption  # noqa: PLC0415
     from docling.pipeline.vlm_pipeline import VlmPipeline  # noqa: PLC0415
+    from docling_ import SerializableFormatOptions  # noqa: PLC0415
 
     vlm_options = VlmConvertOptions.from_preset("granite_docling")
     format_opts = PdfFormatOption(
