@@ -9,15 +9,14 @@ from extract_core import (
     InputDoc,
     MarkdownDoc,
     OutputFormat,
-    PageIndexes,
     Pipeline,
     PipelineType,
     Result,
     Status,
 )
 
-from .constants import ARTIFACTS
-from .utils import path_to_artifacts_dirname, report_recoverable_errors
+from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
+from .utils import path_to_artifacts_dirname, report_recoverable_errors, write_pages
 
 if TYPE_CHECKING:
     from marker.converters.pdf import PdfConverter
@@ -63,7 +62,9 @@ async def _process_doc(
     content, _, images = text_from_rendered(rendered)
     match output_format:
         case OutputFormat.MARKDOWN:
-            output = _to_markdown_doc(doc, content, images, output_path)
+            output = _to_markdown_doc(
+                doc, content, images, output_path, page_sep=DEFAULT_MD_PAGE_SEP
+            )
         case _:
             raise NotImplementedError(f"unsupported output format {output_format}")
     input_doc = doc.without_content()
@@ -71,7 +72,12 @@ async def _process_doc(
 
 
 def _to_markdown_doc(
-    input_doc: InputDoc, content: str, images: dict[str, "Image"], output_path: Path
+    input_doc: InputDoc,
+    content: str,
+    images: dict[str, "Image"],
+    output_path: Path,
+    *,
+    page_sep: str = DEFAULT_MD_PAGE_SEP,
 ) -> MarkdownDoc:
     from marker.renderers.markdown import MarkdownRenderer  # noqa: PLC0415
 
@@ -85,24 +91,9 @@ def _to_markdown_doc(
         im.save(artifacts_dir / im_name)
     del images
     gc.collect()
-    page_sep = MarkdownRenderer.page_separator
-    content = content.split(page_sep)
-    n_pages = len(content)
-    md_path = (output_path / md_dir_name / md_dir_name).with_suffix(
-        OutputFormat.MARKDOWN.value
-    )
-    total_length = 0
-    end_indices = []
-    with md_path.open("w", encoding="utf-8") as f:
-        for page_i, page_content in enumerate(content):
-            content = page_content
-            if page_i > 0:
-                content += "\n"
-            if page_i < n_pages - 1:
-                content += page_sep
-            total_length += len(content)
-            end_indices.append(total_length)
-            f.write(content)
-            f.flush()
-    pages = PageIndexes.from_page_end_indices(end_indices)
+    pages = content.split(MarkdownRenderer.page_separator)
+    md_path = output_path / md_dir_name / md_dir_name
+    md_path = md_path.with_suffix(OutputFormat.MARKDOWN.value)
+    with md_path.open("wb") as f:
+        pages = write_pages(pages, page_sep, f)
     return MarkdownDoc(path=Path(md_dir_name), pages=pages)

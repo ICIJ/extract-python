@@ -5,9 +5,9 @@ from copy import copy
 from functools import wraps
 from itertools import tee
 from pathlib import Path, PurePath
-from typing import Protocol, TypeVar
+from typing import BinaryIO, Protocol, TypeVar
 
-from extract_core import Error, InputDoc, Result, Status
+from extract_core import Error, InputDoc, Pages, Result, Status
 
 R = TypeVar("R")
 In = TypeVar("In")
@@ -73,3 +73,16 @@ def reset_env() -> Generator[None, None, None]:
     finally:
         os.environ.clear()
         os.environ.update(old_env)
+
+
+def write_pages(pages: Iterable[str], page_sep: str, out: BinaryIO) -> Pages:
+    pages_byte_sizes = []
+    pages = iter(pages)
+    content = None
+    for p in pages:
+        if content:
+            pages_byte_sizes.append(out.write((content + page_sep).encode()))
+        content = p
+    if content:
+        pages_byte_sizes.append(out.write(content.encode()))
+    return Pages.from_pages_bytes_sizes(pages_byte_sizes)

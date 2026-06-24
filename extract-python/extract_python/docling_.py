@@ -23,7 +23,6 @@ from extract_core import (
     InputDoc,
     MarkdownDoc,
     OutputFormat,
-    PageIndexes,
     Pipeline,
     PipelineType,
     Result,
@@ -34,7 +33,7 @@ from pydantic import ConfigDict, field_serializer
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
-from .utils import chdir, map_and_preserve, path_to_artifacts_dirname
+from .utils import chdir, map_and_preserve, path_to_artifacts_dirname, write_pages
 
 logger = logging.getLogger(__name__)
 
@@ -115,37 +114,36 @@ def _to_markdown_doc(
         raise FileExistsError(f"directory {md_dir} already exists")
     # Let's avoid issue of duplicated input file names flattened top level
     md_filename = md_dir_name + OutputFormat.MARKDOWN
-    total_length = 0
-    n_pages = len(res.pages)
-
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
         tmp_dir = Path(td)
-        page_path = Path("page.md")
-        # We do a chdir to bypass a Docling bug which only allows to maintain relative
-        # image ref when saving the markdown to a relative path
-        with (tmp_dir / md_filename).open("w") as f, chdir(tmp_dir):
-            end_indices = []
-            for page_i in range(n_pages):
-                res.document.save_as_markdown(
-                    page_path,
-                    page_no=page_i + 1,
-                    image_mode=ImageRefMode.REFERENCED,
-                    artifacts_dir=Path(ARTIFACTS),
-                    **kwargs,
-                )
-                content = page_path.read_text()
-                if page_i > 0:
-                    content += "\n"
-                if page_i < n_pages - 1:
-                    content += page_sep
-                total_length += len(content)
-                end_indices.append(total_length)
-                f.write(content)
-                f.flush()
-                page_path.unlink()
+        md_path = tmp_dir / md_filename
+        current_page_path = tmp_dir / "page.md"
+        with chdir(tmp_dir):
+            # We do a chdir to bypass a Docling bug which only allows to maintain
+            # relative image ref when saving the markdown to a relative path
+            pages = _docling_pages_it(res, current_page_path, **kwargs)
+            with md_path.open("wb") as f:
+                pages = write_pages(pages, page_sep, f)
+        # Clean up the tmp page file before move everything to the end destination
+        current_page_path.unlink(missing_ok=True)
         shutil.move(tmp_dir, md_dir)
-    pages = PageIndexes.from_page_end_indices(end_indices)
     return MarkdownDoc(path=Path(md_dir_name), pages=pages)
+
+
+def _docling_pages_it(
+    res: ConversionResult, output_path: Path, **kwargs
+) -> Iterable[str]:
+    n_pages = len(res.pages)
+    for page_i in range(n_pages):
+        res.document.save_as_markdown(
+            output_path,
+            page_no=page_i + 1,
+            image_mode=ImageRefMode.REFERENCED,
+            artifacts_dir=Path(ARTIFACTS),
+            **kwargs,
+        )
+        content = output_path.read_text()
+        yield content
 
 
 class SerializableFormatOptions(DoclingFormatOption):

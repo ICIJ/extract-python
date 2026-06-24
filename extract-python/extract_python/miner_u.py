@@ -12,7 +12,6 @@ from extract_core import (
     MinerUBackend,
     MinerUPipelineConfig,
     OutputFormat,
-    PageIndexes,
     Pipeline,
     PipelineType,
     Result,
@@ -20,7 +19,7 @@ from extract_core import (
 )
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
-from .utils import path_to_artifacts_dirname, reset_env
+from .utils import path_to_artifacts_dirname, reset_env, write_pages
 
 _MINER_U_CONVERSION_ERRORS = tuple()
 MDMakeFunction = Callable[[list, str, str], str | None]
@@ -148,21 +147,9 @@ def _dump_md_content(
 
     if md_make_mode is None:
         md_make_mode = MakeMode.MM_MD
-    total_length = 0
-    end_indices = []
-    with md_path.open("w") as f:
-        n_pages = len(pdf_info)
-        for page_i, page in enumerate(pdf_info):
-            content = md_make_fn([page], md_make_mode, str(im_dir))
-            if page_i > 0:
-                content += "\n"
-            if page_i < n_pages - 1:
-                content += page_sep
-            total_length += len(content)
-            end_indices.append(total_length)
-            f.write(content)
-            f.flush()
-    end_indices = PageIndexes.from_page_end_indices(end_indices)
+    pages = (md_make_fn([p], md_make_mode, str(im_dir)) for p in pdf_info)
+    with md_path.open("wb") as f:
+        pages = write_pages(pages, page_sep, f)
     output_path = md_path.parent.relative_to(output_path)
-    output = ConversionOutput(path=output_path, pages=end_indices)
+    output = ConversionOutput(path=output_path, pages=pages)
     return output
