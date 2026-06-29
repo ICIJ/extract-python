@@ -24,7 +24,7 @@ jobs:
   tests-no-miner-u:
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: 3.12
+      PYTHON_VERSION: 3.13
       ASTRAL_VERSION: 0.11.6
     steps:
       - uses: actions/checkout@v6
@@ -61,7 +61,7 @@ jobs:
   tests-miner-u:
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: 3.12
+      PYTHON_VERSION: 3.13
       ASTRAL_VERSION: 0.11.6
     steps:
       - uses: actions/checkout@v6
