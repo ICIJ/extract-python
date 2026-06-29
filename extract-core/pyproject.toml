@@ -6,7 +6,7 @@ authors = [
   { name = "Clément Doumouro", email = "cdoumouro@icij.org" },
 ]
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.13,<3.15"
 dependencies = [
   "docling-slim~=2.96",
   "icij-common~=0.8.2",
