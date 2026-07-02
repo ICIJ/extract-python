@@ -24,11 +24,11 @@ try:
     from .docling_ import DoclingFormatOption, DoclingPipelineConfig
 except ModuleNotFoundError:
     DoclingPipelineConfig, DoclingFormatOption = None, None
+
 try:
     from .marker_ import MarkerPipelineConfig
 except ModuleNotFoundError:
     MarkerPipelineConfig = None
-
 
 try:
     from .miner_u import MinerUBackend, MinerUConfig, MinerUPipelineConfig

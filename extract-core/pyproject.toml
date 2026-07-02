@@ -11,9 +11,7 @@ dependencies = [
   "docling-slim~=2.96",
   "icij-common~=0.8.2",
   "pydantic~=2.13",
-  "marker-pdf~=1.10",
-  "mineru~=3.2",
-  "pydantic-extra-types[pycountry]>=2.11.1",
+  "pydantic-extra-types[pycountry]~=2.11.1",
 ]
 
 [tool.uv]
