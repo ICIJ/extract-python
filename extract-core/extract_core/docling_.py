@@ -20,8 +20,14 @@ from docling.datamodel.pipeline_options import (
     TableStructureOptions,
     ThreadedPdfPipelineOptions,
 )
+from docling.datamodel.settings import (
+    BatchConcurrencySettings,
+    DebugSettings,
+    InferenceSettings,
+)
 from icij_common.pydantic_utils import (
     merge_configs,
+    safe_copy,
     tagged_union,
     to_lower_snake_case,
 )
@@ -258,12 +264,19 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     }
 
 
+class DoclingSettings(BaseModel):
+    perf: BatchConcurrencySettings = Field(default_factory=BatchConcurrencySettings)
+    debug: DebugSettings = Field(default_factory=DebugSettings)
+    inference: InferenceSettings = Field(default_factory=InferenceSettings)
+
+
 class DoclingPipelineConfig(BasePipelineConfig):
     pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.DOCLING)
 
     format_options: dict[InputFormat, DoclingFormatOption] = Field(
         default_factory=_default_format_opts
     )
+    settings: DoclingSettings = Field(default_factory=DoclingSettings)
 
     @classmethod
     @cache
@@ -276,3 +289,7 @@ class DoclingPipelineConfig(BasePipelineConfig):
             for ext in FormatToExtensions[f]:
                 supported.add(SupportedExt(f".{ext.lower()}"))
         return supported
+
+    def with_setting(self, settings: DoclingSettings) -> "DoclingPipelineConfig":
+        update = {"settings": settings}
+        return safe_copy(self, update=update)

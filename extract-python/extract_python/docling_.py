@@ -10,6 +10,7 @@ from typing import Any, Self
 
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import PipelineOptions
+from docling.datamodel.settings import scoped
 from docling.document_converter import DocumentConverter, FormatOption
 
 # TODO: this is long to load improve it
@@ -62,16 +63,23 @@ class DoclingPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncGenerator[Result, None]:
-        docs, path_or_streams = map_and_preserve(_to_docling, docs)
-        outputs = self._converter.convert_all(path_or_streams, raises_on_error=False)
+        settings = self._config.settings
+        logger.info("starting extraction with settings: %s", settings)
+        with scoped(
+            perf=settings.perf, debug=settings.debug, inference=settings.inference
+        ):
+            docs, path_or_streams = map_and_preserve(_to_docling, docs)
+            outputs = self._converter.convert_all(
+                path_or_streams, raises_on_error=False
+            )
 
-        sentinel = object()
-        while True:
-            res = await asyncio.to_thread(next, outputs, sentinel)
-            if res is sentinel:
-                return
-            doc = next(docs)
-            yield _to_result(res, doc, output_format, output_path=output_path)
+            sentinel = object()
+            while True:
+                res = await asyncio.to_thread(next, outputs, sentinel)
+                if res is sentinel:
+                    return
+                doc = next(docs)
+                yield _to_result(res, doc, output_format, output_path=output_path)
 
 
 def _to_docling(docs: Iterable[InputDoc]) -> Iterator["Path | DocumentStream"]:
