@@ -1,4 +1,3 @@
-import gc
 import itertools
 import logging
 import os
@@ -233,8 +232,6 @@ def batch_per_pages(
     for chunk in docs:
         short_docs = [d for d in chunk if d.n_pages <= max_pages]
         long_docs = [d for d in chunk if d.n_pages > max_pages]
-        del chunk
-        gc.collect()
         # Bin fill for docs smaller than max_pages
         offset = yield from _bin_fill(short_docs, max_pages=max_pages)
         # otherwise we just yield chunks of max_pages except the last chunk which is
