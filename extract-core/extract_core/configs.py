@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
+from pathlib import Path
 from typing import ClassVar
 
 from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_values_config
 from icij_common.registrable import RegistrableConfig
-from pydantic import Field
+from pydantic import ByteSize, Field
 
-from .objects import Device, SupportedExt
+from .objects import BaseModel, Device, SupportedExt
 
 
 class PipelineType(StrEnum):
@@ -27,3 +28,8 @@ class BasePipelineConfig(RegistrableConfig, ABC):
     @classmethod
     @abstractmethod
     def supported_exts(cls) -> set[SupportedExt]: ...
+
+
+class ResultBufferConfig(BaseModel):
+    max_size: ByteSize = "500MiB"
+    root: Path | None = None

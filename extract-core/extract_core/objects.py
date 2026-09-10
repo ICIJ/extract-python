@@ -8,17 +8,16 @@ from enum import StrEnum
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import Annotated, Any, NoReturn, Self
+from typing import Any, NoReturn, Self
 
 from docling.datamodel.accelerator_options import AcceleratorDevice
 from icij_common.pydantic_utils import (
     icij_config,
     merge_configs,
     no_enum_values_config,
-    safe_copy,
 )
-from pydantic import AfterValidator, Field, TypeAdapter
 from pydantic import BaseModel as _BaseModel
+from pydantic import Field, TypeAdapter
 
 logger = logging.getLogger(__name__)
 base_config = merge_configs(icij_config(), no_enum_values_config())
@@ -120,8 +119,8 @@ class OutputFormat(StrEnum):
 
 class Status(StrEnum):
     FAILURE = "failure"
-    SUCCESS = "success"
     PARTIAL_SUCCESS = "partial_success"
+    SUCCESS = "success"
 
     @classmethod
     def from_docling(cls, v: Any) -> Self:
@@ -138,6 +137,26 @@ class Status(StrEnum):
     @property
     def allows_conversion(self) -> bool:
         return self is Status.SUCCESS or self is Status.PARTIAL_SUCCESS
+
+    def __add__(self, other: "Status") -> "Status":
+        if not isinstance(other, Status):
+            msg = (
+                f"can't add {other} of type {other.__class__.__name__} "
+                f"to {self.__class__.__name__}"
+            )
+            raise TypeError(msg)
+        statuses = sorted((self, other), key=lambda x: x.value)
+        match statuses:
+            case (Status.FAILURE, Status.FAILURE):
+                return Status.FAILURE
+            case (Status.FAILURE, Status.SUCCESS):
+                return Status.PARTIAL_SUCCESS
+            case (_, Status.PARTIAL_SUCCESS) | (Status.PARTIAL_SUCCESS, _):
+                return Status.PARTIAL_SUCCESS
+            case (Status.SUCCESS, Status.SUCCESS):
+                return Status.SUCCESS
+            case _:
+                raise ValueError(f"unexpected value {statuses}")
 
 
 class Error(BaseModel):
@@ -179,29 +198,23 @@ def _id_title(title: str) -> str:
 class InputDoc(BaseModel):
     ext: SupportedExt
     path: Path
-    content: bytes | None = None
+    n_pages: int
 
     @classmethod
-    def from_path(cls, path: str | Path) -> Self:
+    def from_path(cls, path: str | Path, n_pages: int) -> Self:
         if isinstance(path, str):
             path = Path(path)
         ext = SupportedExt(path.suffix)
-        return cls(path=path, ext=ext)
+        return cls(path=path, ext=ext, n_pages=n_pages)
 
     def to_docling(self):  # noqa: ANN201
         from docling_core.types.io import DocumentStream  # noqa: PLC0415
-
-        if self.content is not None:
-            return DocumentStream(name=str(self.path), stream=BytesIO(self.content))
 
         if not self.path.suffix:
             return DocumentStream(
                 name=str(self.path), stream=BytesIO(self.path.read_bytes())
             )
         return self.path
-
-    def without_content(self) -> Self:
-        return safe_copy(self, update={"content": None})
 
 
 Ranges = list[tuple[int, int]]
@@ -223,6 +236,7 @@ class Pages(BaseModel):
 class ConversionOutput(BaseModel):
     path: Path
     pages: Pages = Field(default_factory=Pages)
+    confidence: float | None
 
 
 class MarkdownDoc(ConversionOutput):
@@ -235,12 +249,6 @@ class MarkdownDoc(ConversionOutput):
         return {ConversionStatus.SUCCESS, ConversionStatus.PARTIAL_SUCCESS}
 
 
-def _input_should_not_have_content(value: InputDoc) -> InputDoc:
-    if value.content is not None:
-        raise ValueError(f"response input can't have content, but got {value}")
-    return value
-
-
 class _BaseResult(BaseModel, ABC):
     input: InputDoc
     status: Status
@@ -248,7 +256,7 @@ class _BaseResult(BaseModel, ABC):
 
 
 class ResponseResult(_BaseResult):
-    input: Annotated[InputDoc, AfterValidator(func=_input_should_not_have_content)]
+    input: InputDoc
     output_path: Path
 
 
@@ -258,7 +266,7 @@ class Result(_BaseResult):
 
     def to_response(self) -> ResponseResult:
         return ResponseResult(
-            input=self.input.without_content(),
+            input=self.input,
             status=self.status,
             errors=self.errors,
             output_path=self.output.path,

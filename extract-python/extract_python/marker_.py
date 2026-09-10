@@ -1,6 +1,6 @@
 import asyncio
 import gc
-from collections.abc import AsyncGenerator, Iterable
+from collections.abc import AsyncIterable, Iterable
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -30,7 +30,7 @@ _MARKER_CONVERSION_ERRORS = tuple()
 class MarkerPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
-    ) -> AsyncGenerator[Result, None]:
+    ) -> AsyncIterable[Result]:
         from marker.config.parser import ConfigParser  # noqa: PLC0415
         from marker.converters.pdf import PdfConverter  # noqa: PLC0415
         from marker.models import create_model_dict  # noqa: PLC0415
@@ -67,8 +67,7 @@ async def _process_doc(
             )
         case _:
             raise NotImplementedError(f"unsupported output format {output_format}")
-    input_doc = doc.without_content()
-    return Result(input=input_doc, status=Status.SUCCESS, output=output)
+    return Result(input=doc, status=Status.SUCCESS, output=output)
 
 
 def _to_markdown_doc(
@@ -96,4 +95,4 @@ def _to_markdown_doc(
     md_path = md_path.with_suffix(OutputFormat.MARKDOWN.value)
     with md_path.open("wb") as f:
         pages = write_pages(pages, page_sep, f)
-    return MarkdownDoc(path=Path(md_dir_name), pages=pages)
+    return MarkdownDoc(path=Path(md_dir_name), pages=pages, confidence=None)

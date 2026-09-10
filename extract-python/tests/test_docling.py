@@ -2,15 +2,19 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from _pytest.legacypath import TempdirFactory
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import VlmConvertOptions, VlmPipelineOptions
 from extract_core import (
+    BatchConcurrencySettings,
     DoclingFormatOption,
     DoclingPipelineConfig,
+    DoclingSettings,
     InputDoc,
     OutputFormat,
     Pipeline,
+    ResultBufferConfig,
     Status,
 )
 from extract_core.objects import Device
@@ -20,9 +24,17 @@ from . import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config(device: Device) -> DoclingPipelineConfig:
+def config(device: Device, tmpdir_factory: TempdirFactory) -> DoclingPipelineConfig:
     # TODO: for testing add a lightweight configuration
-    config = DoclingPipelineConfig(device=device)
+    fs_buffer_root = Path(tmpdir_factory.mktemp("fs_buffer_root"))
+    settings = DoclingSettings(
+        perf=BatchConcurrencySettings(page_batch_size=2, max_page_batches=1)
+    )
+    config = DoclingPipelineConfig(
+        device=device,
+        settings=settings,
+        result_buffer=ResultBufferConfig(root=fs_buffer_root, max_size="0MB"),
+    )
     return config
 
 
@@ -42,9 +54,9 @@ async def test_docling_pdf_to_markdown(
     res = [r async for r in pipeline.extract_content(docs, output_format, output_path)]
     # Then
     assert all(r.status == Status.SUCCESS for r in res)
-    expected_output_paths = ["scanned_pdf", "computer_generated_pdf"]
+    expected_output_paths = ["computer_generated_pdf", "scanned_pdf"]
     expected_output_paths = [Path(p) for p in expected_output_paths]
-    output_paths = [r.output.path for r in res]
+    output_paths = sorted(r.output.path for r in res)
     assert output_paths == expected_output_paths
     for p in expected_output_paths:
         assert (output_path / p).exists()
@@ -53,10 +65,10 @@ async def test_docling_pdf_to_markdown(
         assert any((output_path / p).glob("artifacts/*.png"))
     assert all(r.output.pages.byte_ranges for r in res)
     assert not any(r.errors for r in res)
-    input_path = [r.input.path for r in res]
+    input_path = sorted(r.input.path for r in res)
     expected_input_path = [
-        TEST_DATA_DIR / "scanned.pdf",
         TEST_DATA_DIR / "computer_generated.pdf",
+        TEST_DATA_DIR / "scanned.pdf",
     ]
     assert input_path == expected_input_path
 

@@ -18,9 +18,9 @@ def device() -> Device:
 
 @pytest.fixture(scope="session")
 def docs() -> list[InputDoc]:
-    doc_paths = ("scanned.pdf", "computer_generated.pdf")
-    doc_paths = (TEST_DATA_DIR / p for p in doc_paths)
-    docs = [InputDoc.from_path(p) for p in doc_paths]
+    docs = (("scanned.pdf", 1), ("computer_generated.pdf", 3))
+    docs = ((TEST_DATA_DIR / path, n_pages) for path, n_pages in docs)
+    docs = [InputDoc.from_path(path, n_pages=n_pages) for path, n_pages in docs]
     return docs
 
 
