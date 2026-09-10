@@ -230,8 +230,8 @@ def batch_per_pages(
     max_pages = page_batch_size * max_page_batches
     docs = itertools.batched(docs, chunk_size, strict=False)
     for chunk in docs:
-        short_docs = [d for d in chunk if d.n_pages <= max_pages]
-        long_docs = [d for d in chunk if d.n_pages > max_pages]
+        short_docs = (d for d in chunk if d.n_pages <= max_pages)
+        long_docs = (d for d in chunk if d.n_pages > max_pages)
         # Bin fill for docs smaller than max_pages
         offset = yield from _bin_fill(short_docs, max_pages=max_pages)
         # otherwise we just yield chunks of max_pages except the last chunk which is
