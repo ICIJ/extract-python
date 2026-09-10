@@ -1,3 +1,4 @@
+import pytest
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import (
@@ -6,7 +7,7 @@ from docling.datamodel.pipeline_options import (
 )
 from docling.document_converter import PdfFormatOption
 from extract_core import DoclingPipelineConfig, PipelineConfig
-from extract_core.objects import Device
+from extract_core.objects import Device, Status
 from pydantic import TypeAdapter
 
 
@@ -43,3 +44,24 @@ def test_docling_pipeline_config() -> None:
         )
     )
     assert pdf_pipeline_options.model_dump() == expected_options.model_dump()
+
+
+@pytest.mark.parametrize(
+    ("left", "right", "expected_status"),
+    [
+        (Status.FAILURE, Status.FAILURE, Status.FAILURE),
+        (Status.FAILURE, Status.PARTIAL_SUCCESS, Status.PARTIAL_SUCCESS),
+        (Status.FAILURE, Status.SUCCESS, Status.PARTIAL_SUCCESS),
+        (Status.PARTIAL_SUCCESS, Status.FAILURE, Status.PARTIAL_SUCCESS),
+        (Status.PARTIAL_SUCCESS, Status.PARTIAL_SUCCESS, Status.PARTIAL_SUCCESS),
+        (Status.PARTIAL_SUCCESS, Status.SUCCESS, Status.PARTIAL_SUCCESS),
+        (Status.SUCCESS, Status.FAILURE, Status.PARTIAL_SUCCESS),
+        (Status.SUCCESS, Status.PARTIAL_SUCCESS, Status.PARTIAL_SUCCESS),
+        (Status.SUCCESS, Status.SUCCESS, Status.SUCCESS),
+    ],
+)
+def test_add_statuses(left: Status, right: Status, expected_status: Status) -> None:
+    # When
+    status = left + right
+    # Then
+    assert status == expected_status

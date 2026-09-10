@@ -3,7 +3,7 @@ from typing import Annotated
 from icij_common.pydantic_utils import make_enum_discriminator, tagged_union
 from pydantic import Discriminator
 
-from .configs import BasePipelineConfig, PipelineType
+from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
 from .objects import (
     BaseModel,
     ConversionOutput,
@@ -21,9 +21,24 @@ from .objects import (
 from .pipeline import Pipeline
 
 try:
-    from .docling_ import DoclingFormatOption, DoclingPipelineConfig
+    from .docling_ import (
+        BatchConcurrencySettings,
+        DoclingFormatOption,
+        DoclingPipelineConfig,
+        DoclingSettings,
+    )
 except ModuleNotFoundError:
-    DoclingPipelineConfig, DoclingFormatOption = None, None
+    (
+        BatchConcurrencySettings,
+        DoclingFormatOption,
+        DoclingPipelineConfig,
+        DoclingSettings,
+    ) = (
+        None,
+        None,
+        None,
+        None,
+    )
 
 try:
     from .marker_ import MarkerPipelineConfig
@@ -66,4 +81,7 @@ __all__ = [
     "Result",
     "Status",
     "SupportedExt",
+    "ResultBufferConfig",
+    "DoclingSettings",
+    "BatchConcurrencySettings",
 ]

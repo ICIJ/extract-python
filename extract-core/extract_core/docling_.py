@@ -1,6 +1,6 @@
 import importlib
 from functools import cache
-from typing import Annotated, Any, ClassVar, TypeVar, get_type_hints
+from typing import Annotated, Any, ClassVar, get_type_hints
 
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
@@ -21,7 +21,9 @@ from docling.datamodel.pipeline_options import (
     ThreadedPdfPipelineOptions,
 )
 from docling.datamodel.settings import (
-    BatchConcurrencySettings,
+    BatchConcurrencySettings as DoclingBatchConcurrencySettings,
+)
+from docling.datamodel.settings import (
     DebugSettings,
     InferenceSettings,
 )
@@ -40,7 +42,7 @@ from pydantic import (
 )
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
-from .configs import BasePipelineConfig, PipelineType
+from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
 from .objects import BaseModel, Device, SupportedExt
 from .utils import all_subclasses
 
@@ -69,10 +71,7 @@ def _validate_pipeline_opts(v: PipelineOptions) -> PipelineOptions:
     return v
 
 
-T = TypeVar("T")
-
-
-def _find_subcls(cls: type[T], name: str) -> type[T]:
+def _find_subcls[T](cls: type[T], name: str) -> type[T]:
     # Check if the class available
     for c in all_subclasses(cls):
         if c.__name__ == name:
@@ -264,6 +263,13 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     }
 
 
+class BatchConcurrencySettings(DoclingBatchConcurrencySettings):
+    # process up to 16 pages in || on GPU
+    page_batch_size: int = 16
+    # call convert_all with at most page_batch_size * page_batch_size
+    max_page_batches: int = 2
+
+
 class DoclingSettings(BaseModel):
     perf: BatchConcurrencySettings = Field(default_factory=BatchConcurrencySettings)
     debug: DebugSettings = Field(default_factory=DebugSettings)
@@ -276,7 +282,9 @@ class DoclingPipelineConfig(BasePipelineConfig):
     format_options: dict[InputFormat, DoclingFormatOption] = Field(
         default_factory=_default_format_opts
     )
+
     settings: DoclingSettings = Field(default_factory=DoclingSettings)
+    result_buffer: ResultBufferConfig = Field(default_factory=ResultBufferConfig)
 
     @classmethod
     @cache

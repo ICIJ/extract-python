@@ -1,7 +1,7 @@
 import json
 import os
 import shutil
-from collections.abc import AsyncGenerator, Callable, Iterable
+from collections.abc import AsyncIterable, Callable, Iterable
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -34,7 +34,7 @@ class MinerUPipeline(Pipeline):
 
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
-    ) -> AsyncGenerator[Result, None]:
+    ) -> AsyncIterable[Result]:
         from mineru.cli.common import aio_do_parse  # noqa: PLC0415
 
         with reset_env():
@@ -126,15 +126,13 @@ def _process_doc(
             raise NotImplementedError(f"unsupported output format {output_format}")
     middle_json_path = res_path / f"{doc.path.name}_middle.json"
     middle_json = json.loads(middle_json_path.read_text())
-    pdf_info = middle_json["pdf_info"]
     shutil.move(res_path / "images", artifacts_dir)
-    output = dump_content_fn(pdf_info)
-    input_doc = doc.without_content()
-    return Result(input=input_doc, status=Status.SUCCESS, output=output)
+    output = dump_content_fn(middle_json)
+    return Result(input=doc, status=Status.SUCCESS, output=output)
 
 
 def _dump_md_content(
-    pdf_info: list[dict],
+    middle_json: dict,
     *,
     md_make_fn: MDMakeFunction,
     page_sep: str = DEFAULT_MD_PAGE_SEP,
@@ -145,11 +143,72 @@ def _dump_md_content(
 ) -> ConversionOutput:
     from mineru.utils.enum_class import MakeMode  # noqa: PLC0415
 
+    pdf_info = middle_json["pdf_info"]
     if md_make_mode is None:
         md_make_mode = MakeMode.MM_MD
     pages = (md_make_fn([p], md_make_mode, str(im_dir)) for p in pdf_info)
     with md_path.open("wb") as f:
         pages = write_pages(pages, page_sep, f)
     output_path = md_path.parent.relative_to(output_path)
-    output = ConversionOutput(path=output_path, pages=pages)
+    confidence = _mineru_confidence(pdf_info)
+    output = ConversionOutput(path=output_path, pages=pages, confidence=confidence)
     return output
+
+
+def _mineru_confidence(pdf_info: list[dict]) -> float:
+    if not pdf_info:
+        return 1.0
+    block_conf = _mineru_block_confidence(pdf_info)
+    line_config = _mineru_line_confidence(pdf_info)
+    return (block_conf + line_config) / 2.0
+
+
+def _mineru_block_confidence(pdf_info: list[dict]) -> float:
+    import numpy as np  # noqa: PLC0415
+
+    scores = []
+    for info in pdf_info:
+        for block in info["para_blocks"]:
+            score = block.get("score")
+            if score is not None:
+                scores.append(score)
+    if scores:
+        return np.average(scores)
+    return 1.0
+
+
+def _mineru_line_confidence(pdf_info: list[dict]) -> float:
+    import numpy as np  # noqa: PLC0415
+
+    scores = []
+    lengths = []
+    for info in pdf_info:
+        for block in info["para_blocks"]:
+            for line in block.get("lines", []):
+                for span in line["spans"]:
+                    score = span.get("score")
+                    if score is not None:
+                        scores.append(score)
+                        lengths.append(len(span["content"]))
+    if scores:
+        return np.average(scores, weights=lengths)
+    return 1.0
+
+
+def _parse_block(block: dict) -> tuple[list[float], list[float]]:
+    if "lines" in block:
+        scores = []
+        lengths = []
+        for line in block.get("lines", []):
+            for span in line["spans"]:
+                score = span.get("score")
+                if score is not None:
+                    scores.append(score)
+                    lengths.append(len(span["content"]))
+        return scores, lengths
+    if "blocs" in block:
+        scores, lengths = (_parse_block(b) for b in block["blocs"])
+        scores = sum(*scores, start=[])
+        lengths = sum(*lengths, start=[])
+        return scores, lengths
+    raise NotImplementedError(f"unsupported block: {block}")

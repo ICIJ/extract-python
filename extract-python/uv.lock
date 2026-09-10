@@ -919,6 +919,7 @@ source = { editable = "." }
 dependencies = [
     { name = "extract-core" },
     { name = "icij-common" },
+    { name = "pympler" },
 ]
 
 [package.optional-dependencies]
@@ -965,6 +966,7 @@ requires-dist = [
     { name = "mineru", extras = ["pipeline", "vlm"], marker = "extra == 'mineru'", specifier = "~=3.2" },
     { name = "notebook", marker = "extra == 'benches'", specifier = ">=7.4.5" },
     { name = "pydantic-extra-types", extras = ["pycountry"], marker = "extra == 'mineru'", specifier = "~=2.11" },
+    { name = "pympler", specifier = "~=1.1" },
     { name = "pypdfium2", marker = "extra == 'benches'", specifier = ">=4.30.0" },
     { name = "python-pptx", marker = "extra == 'mineru'", specifier = "~=1.0" },
     { name = "six", marker = "extra == 'mineru'", specifier = "~=1.17" },
@@ -2600,9 +2602,9 @@ name = "ocrmac"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pillow", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-vision", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
+    { name = "click", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pillow", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-vision", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5e/07/3e15ab404f75875c5e48c47163300eb90b7409044d8711fc3aaf52503f2e/ocrmac-1.0.1.tar.gz", hash = "sha256:507fe5e4cbd67b2d03f6729a52bbc11f9d0b58241134eb958a5daafd4b9d93d9", size = 1454317, upload-time = "2026-01-08T16:44:26.412Z" }
 wheels = [
@@ -3292,6 +3294,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5d/ab/34ec41718af73c00119d0351b7a2531d2ebddb51833a36448fc7b862be60/pylatexenc-2.10.tar.gz", hash = "sha256:3dd8fd84eb46dc30bee1e23eaab8d8fb5a7f507347b23e5f38ad9675c84f40d3", size = 162597, upload-time = "2021-04-06T07:56:07.854Z" }
 
 [[package]]
+name = "pympler"
+version = "1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/37/c384631908029676d8e7213dd956bb686af303a80db7afbc9be36bc49495/pympler-1.1.tar.gz", hash = "sha256:1eaa867cb8992c218430f1708fdaccda53df064144d1c5656b1e6f1ee6000424", size = 179954, upload-time = "2024-06-28T19:56:06.563Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/4f/a6a2e2b202d7fd97eadfe90979845b8706676b41cbd3b42ba75adf329d1f/Pympler-1.1-py3-none-any.whl", hash = "sha256:5b223d6027d0619584116a0cbc28e8d2e378f7a79c1e5e024f9ff3b673c58506", size = 165766, upload-time = "2024-06-28T19:56:05.087Z" },
+]
+
+[[package]]
 name = "pyobjc-core"
 version = "12.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3308,7 +3322,7 @@ name = "pyobjc-framework-cocoa"
 version = "12.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
+    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/51/34/fbe38a204643aa4e1b91391cdce07a34da565a69171ebcad08de7438a556/pyobjc_framework_cocoa-12.2.1.tar.gz", hash = "sha256:b94b37fe5730e5ae1fb0052912cd174e6ec329b0bfba4a012ae5db1014b5864b", size = 3125751, upload-time = "2026-06-19T16:20:05.159Z" }
 wheels = [
@@ -3323,8 +3337,8 @@ name = "pyobjc-framework-coreml"
 version = "12.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
+    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/98/1e/7d2db3e4468eb04cc92264be83113d86eea4f96302742437de695a445d6d/pyobjc_framework_coreml-12.2.1.tar.gz", hash = "sha256:ef3c2b6a160891b44173235603d10174929656b9c206d6f2f443fe2aa903c2cb", size = 49272, upload-time = "2026-06-19T16:20:18.459Z" }
 wheels = [
@@ -3339,8 +3353,8 @@ name = "pyobjc-framework-quartz"
 version = "12.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
+    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3b/f6/2a8b84dbf1fe7c04dd96ea73d991678d4e09a909f51971ecc51629bb2ab4/pyobjc_framework_quartz-12.2.1.tar.gz", hash = "sha256:b3b8b6f71e66147f8ff9e6213864cc8527e3a0b1ee90835b93ce221f4802d9b0", size = 3215521, upload-time = "2026-06-19T16:21:30.199Z" }
 wheels = [
@@ -3355,10 +3369,10 @@ name = "pyobjc-framework-vision"
 version = "12.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-coreml", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or extra == 'extra-14-extract-python-marker' or extra != 'extra-14-extract-python-mineru'" },
+    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-coreml", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0e/7a/1fdffff1b6bf124b260a2169869f4b71a08b9f6603698f7dec990d5ae5f3/pyobjc_framework_vision-12.2.1.tar.gz", hash = "sha256:debfd59dd7d962a6053bf733370148c11a9ec44091b517a0966f48d81c305879", size = 72683, upload-time = "2026-06-19T16:22:01.102Z" }
 wheels = [
