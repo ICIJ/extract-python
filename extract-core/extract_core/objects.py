@@ -1,5 +1,4 @@
 import logging
-import os
 import traceback
 import uuid
 from abc import ABC
@@ -8,7 +7,7 @@ from enum import StrEnum
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import Any, NoReturn, Self
+from typing import Any, Self
 
 from docling.datamodel.accelerator_options import AcceleratorDevice
 from icij_common.pydantic_utils import (
@@ -17,7 +16,7 @@ from icij_common.pydantic_utils import (
     no_enum_values_config,
 )
 from pydantic import BaseModel as _BaseModel
-from pydantic import Field, TypeAdapter
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 base_config = merge_configs(icij_config(), no_enum_values_config())
@@ -204,7 +203,7 @@ class InputDoc(BaseModel):
     def from_path(cls, path: str | Path, n_pages: int) -> Self:
         if isinstance(path, str):
             path = Path(path)
-        ext = SupportedExt(path.suffix)
+        ext = SupportedExt(path.suffix.lower())
         return cls(path=path, ext=ext, n_pages=n_pages)
 
     def to_docling(self):  # noqa: ANN201
@@ -275,57 +274,3 @@ class Result(_BaseResult):
 
 class ExtractionResponse(BaseModel):
     results: list[ResponseResult]
-
-
-_INPUT_DOCS_ADAPTER = TypeAdapter(list[InputDoc | Path])
-
-
-def parse_extraction_request(
-    docs: str | list[dict | str], *, data_dir: Path
-) -> list[InputDoc]:
-    if isinstance(docs, str):
-        logger.debug("exploring files in %s", data_dir.absolute())
-        docs_dir = Path(data_dir) / docs
-        docs = _as_input_docs(docs_dir)
-        msg = "found %s"
-        if len(docs) > 10:
-            msg = msg + ", and more..."
-        logger.debug("found %s", docs[:10])
-        return docs
-    docs = _INPUT_DOCS_ADAPTER.validate_python(docs)
-    if not docs:
-        return []
-    if isinstance(docs[0], Path):
-        doc_meta = []
-        unknown_exts = []
-        for doc in docs:
-            _, ext = os.path.splitext(str(doc))
-            if not ext:
-                unknown_exts.append(doc)
-            else:
-                doc_meta.append(InputDoc.from_path(path=doc.relative_to(data_dir)))
-        if unknown_exts:
-            raise ValueError(f"found files with unknown extensions {unknown_exts}")
-        return doc_meta
-    return docs
-
-
-def _raise(err: OSError) -> NoReturn:
-    raise err
-
-
-def _as_input_docs(
-    docs_dir: Path, *, supported_ext: set[str] | None = None
-) -> list[InputDoc]:
-    if supported_ext is None:
-        supported_ext = {v.value for v in SupportedExt}
-    docs = []
-    for root, _, files in os.walk(docs_dir, onerror=_raise):
-        root = Path(root)  # noqa: PLW2901
-        for f in files:
-            ext = Path(f).suffix
-            if not ext or ext not in supported_ext:
-                continue
-            docs.append(InputDoc.from_path(path=root / f))
-    docs = sorted(docs, key=lambda x: x.path)
-    return docs
