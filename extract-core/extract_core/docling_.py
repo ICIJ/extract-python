@@ -23,9 +23,9 @@ from docling.datamodel.pipeline_options import (
 from docling.datamodel.settings import (
     BatchConcurrencySettings as DoclingBatchConcurrencySettings,
 )
+from docling.datamodel.settings import DebugSettings
 from docling.datamodel.settings import (
-    DebugSettings,
-    InferenceSettings,
+    InferenceSettings as DoclingInferenceSettings,
 )
 from icij_common.pydantic_utils import (
     merge_configs,
@@ -268,6 +268,10 @@ class BatchConcurrencySettings(DoclingBatchConcurrencySettings):
     page_batch_size: int = 16
     # call convert_all with at most page_batch_size * page_batch_size
     max_page_batches: int = 2
+
+
+class InferenceSettings(DoclingInferenceSettings):
+    document_timeout: float | None = None
 
 
 class DoclingSettings(BaseModel):
