@@ -243,7 +243,6 @@ class DoclingFormatOption(BaseFormatOption):
         )
 
 
-@cache
 def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     pipeline_opts = ThreadedPdfPipelineOptions(
         ocr_options=EasyOcrOptions(), generate_picture_images=True
@@ -291,7 +290,6 @@ class DoclingPipelineConfig(BasePipelineConfig):
     result_buffer: ResultBufferConfig = Field(default_factory=ResultBufferConfig)
 
     @classmethod
-    @cache
     def supported_exts(cls) -> set[SupportedExt]:
         unsupported = {InputFormat.AUDIO, InputFormat.METS_GBS, InputFormat.VTT}
         supported = set()
