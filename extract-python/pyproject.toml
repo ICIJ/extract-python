@@ -22,7 +22,7 @@ benches = [
 ]
 
 docling = [
-  "docling-slim[standard,feat-ocr-easyocr,feat-ocr-tesserocr,feat-ocr-mac]~=2.96",
+  "docling-slim[standard,feat-ocr-easyocr,feat-ocr-tesserocr,feat-ocr-mac]~=2.127",
 ]
 
 marker = [
