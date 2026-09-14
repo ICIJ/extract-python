@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
-  "docling-slim~=2.96",
+  "docling-slim~=2.127",
   "icij-common~=0.8.2",
   "pydantic~=2.13",
   "pydantic-extra-types[pycountry]~=2.11.1",
@@ -74,8 +74,8 @@ torchvision = [
 
 [dependency-groups]
 dev = [
-  "docling~=2.96",
-  "docling-slim[models-vlm-inline]~=2.96",
+  "docling~=2.127",
+  "docling-slim[models-vlm-inline]~=2.127",
   "mpmath~=1.3.0",
   "pytest~=8.3.5",
   "pytest-asyncio~=0.25.3",

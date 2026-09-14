@@ -1,6 +1,6 @@
 import importlib
 from functools import cache
-from typing import Annotated, Any, ClassVar, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, get_type_hints
 
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
@@ -11,14 +11,9 @@ from docling.datamodel.base_models import (
 from docling.datamodel.pipeline_options import (
     BaseLayoutOptions,
     BaseTableStructureOptions,
-    EasyOcrOptions,
-    LayoutOptions,
     OcrOptions,
     PictureDescriptionBaseOptions,
-    PictureDescriptionVlmEngineOptions,
     PipelineOptions,
-    TableStructureOptions,
-    ThreadedPdfPipelineOptions,
 )
 from docling.datamodel.settings import (
     BatchConcurrencySettings as DoclingBatchConcurrencySettings,
@@ -45,6 +40,9 @@ from pydantic_core.core_schema import SerializerFunctionWrapHandler
 from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
 from .objects import BaseModel, Device, SupportedExt
 from .utils import all_subclasses
+
+if TYPE_CHECKING:
+    pass
 
 
 @cache
@@ -244,22 +242,90 @@ class DoclingFormatOption(BaseFormatOption):
 
 
 def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
-    pipeline_opts = ThreadedPdfPipelineOptions(
-        ocr_options=EasyOcrOptions(), generate_picture_images=True
-    ).model_dump(polymorphic_serialization=True)
-    pipeline_opts["picture_description_options"]["kind"] = (
-        PictureDescriptionVlmEngineOptions.kind
+    from docling.backend.json.docling_json_backend import DoclingJSONBackend
+    from docling.backend.mets_gbs_backend import MetsGbsDocumentBackend
+    from docling.backend.webvtt_backend import WebVTTDocumentBackend
+    from docling.document_converter import (
+        AsciiDocFormatOption,
+        AudioFormatOption,
+        BoxNoteFormatOption,
+        CsvFormatOption,
+        DclxFormatOption,
+        EbcdicFormatOption,
+        EmailFormatOption,
+        EpubFormatOption,
+        ExcelFormatOption,
+        FormatOption,
+        HTMLFormatOption,
+        ImageFormatOption,
+        IWorkPagesFormatOption,
+        LatexFormatOption,
+        MarkdownFormatOption,
+        OdpFormatOption,
+        OdsFormatOption,
+        OdtFormatOption,
+        PatentUsptoFormatOption,
+        PdfFormatOption,
+        PowerpointFormatOption,
+        VideoFormatOption,
+        WordFormatOption,
+        XBRLFormatOption,
+        XMLDocLangFormatOption,
+        XMLJatsFormatOption,
     )
-    pipeline_opts["ocr_options"]["kind"] = EasyOcrOptions.kind
-    pipeline_opts["layout_options"]["kind"] = LayoutOptions.kind
-    pipeline_opts["table_structure_options"]["kind"] = TableStructureOptions.kind
-    return {
-        InputFormat.PDF: DoclingFormatOption(
-            pipeline_cls="StandardPdfPipeline",
-            backend="DoclingParseDocumentBackend",
-            pipeline_options=pipeline_opts,
+    from docling.pipeline.simple_pipeline import SimplePipeline
+    from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+
+    default = {
+        InputFormat.CSV: CsvFormatOption(),
+        InputFormat.BOXNOTE: BoxNoteFormatOption(),
+        InputFormat.XLSX: ExcelFormatOption(),
+        InputFormat.XLS: ExcelFormatOption(),
+        InputFormat.DOCX: WordFormatOption(),
+        InputFormat.DOC: WordFormatOption(),
+        InputFormat.PPTX: PowerpointFormatOption(),
+        InputFormat.PPT: PowerpointFormatOption(),
+        InputFormat.ODT: OdtFormatOption(),
+        InputFormat.ODS: OdsFormatOption(),
+        InputFormat.ODP: OdpFormatOption(),
+        InputFormat.MD: MarkdownFormatOption(),
+        InputFormat.ASCIIDOC: AsciiDocFormatOption(),
+        InputFormat.HTML: HTMLFormatOption(),
+        InputFormat.XML_USPTO: PatentUsptoFormatOption(),
+        InputFormat.XML_JATS: XMLJatsFormatOption(),
+        InputFormat.XML_DOCLANG: XMLDocLangFormatOption(),
+        InputFormat.DCLX: DclxFormatOption(),
+        InputFormat.XML_XBRL: XBRLFormatOption(),
+        InputFormat.METS_GBS: FormatOption(
+            pipeline_cls=StandardPdfPipeline, backend=MetsGbsDocumentBackend
         ),
+        InputFormat.IMAGE: ImageFormatOption(),
+        InputFormat.PDF: PdfFormatOption(),
+        InputFormat.JSON_DOCLING: FormatOption(
+            pipeline_cls=SimplePipeline, backend=DoclingJSONBackend
+        ),
+        InputFormat.AUDIO: AudioFormatOption(),
+        InputFormat.VIDEO: VideoFormatOption(),
+        InputFormat.VTT: FormatOption(
+            pipeline_cls=SimplePipeline, backend=WebVTTDocumentBackend
+        ),
+        InputFormat.LATEX: LatexFormatOption(),
+        InputFormat.EMAIL: EmailFormatOption(),
+        InputFormat.EPUB: EpubFormatOption(),
+        InputFormat.IWORK_PAGES: IWorkPagesFormatOption(),
+        InputFormat.EBCDIC: EbcdicFormatOption(),
     }
+    for fmt, opts in default.items():
+        if hasattr(opts, "generate_picture_images"):
+            opts = safe_copy(opts, update={"generate_picture_images": True})
+        opts = DoclingFormatOption(
+            backend=opts.backend.__class__.__name__,
+            backend_options=opts.backend_options,
+            pipeline_cls=opts.pipeline_cls.__name__,
+            pipeline_options=opts.pipeline_options.model_dump(mode="json"),
+        )
+        default[fmt] = opts
+    return default
 
 
 class BatchConcurrencySettings(DoclingBatchConcurrencySettings):
