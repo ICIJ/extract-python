@@ -319,7 +319,7 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         if hasattr(opts, "generate_picture_images"):
             opts = safe_copy(opts, update={"generate_picture_images": True})
         opts = DoclingFormatOption(
-            backend=opts.backend.__class__.__name__,
+            backend=opts.backend.__name__,
             backend_options=opts.backend_options,
             pipeline_cls=opts.pipeline_cls.__name__,
             pipeline_options=opts.pipeline_options.model_dump(mode="json"),
