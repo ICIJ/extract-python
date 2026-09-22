@@ -362,6 +362,9 @@ class DoclingPipelineConfig(BasePipelineConfig):
             InputFormat.METS_GBS,
             InputFormat.VIDEO,
             InputFormat.VTT,
+            InputFormat.BOXNOTE,  # maps to octet-stream
+            InputFormat.DCLX,  # maps to octet-stream
+            InputFormat.EBCDIC,  # maps to octet-stream
         }
         supported = set()
         for f in InputFormat:
