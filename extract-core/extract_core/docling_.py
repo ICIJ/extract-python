@@ -357,7 +357,12 @@ class DoclingPipelineConfig(BasePipelineConfig):
 
     @classmethod
     def supported_exts(cls) -> set[SupportedExt]:
-        unsupported = {InputFormat.AUDIO, InputFormat.METS_GBS, InputFormat.VTT}
+        unsupported = {
+            InputFormat.AUDIO,
+            InputFormat.METS_GBS,
+            InputFormat.VIDEO,
+            InputFormat.VTT,
+        }
         supported = set()
         for f in InputFormat:
             if f in unsupported:

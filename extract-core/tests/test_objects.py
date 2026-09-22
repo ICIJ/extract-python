@@ -11,6 +11,14 @@ from extract_core.objects import Device, Status
 from pydantic import TypeAdapter
 
 
+def test_supported_ext_should_include_all_docling_input_formats() -> None:
+    for e in DoclingPipelineConfig.supported_exts():
+        # When
+        input_format = e.to_docling()  # This will fail when docling has new input fmts
+        # Then
+        assert isinstance(input_format, InputFormat)
+
+
 def test_docling_pipeline_config() -> None:
     # Given
     ta = TypeAdapter(PipelineConfig)
