@@ -43,6 +43,15 @@ def pipeline(config: DoclingPipelineConfig) -> DoclingPipeline:
     return cast(DoclingPipeline, Pipeline.from_config(config=config))
 
 
+def test_pipeline_should_initialize_from_default() -> None:
+    # Given
+    config = DoclingPipelineConfig()
+    # When
+    pipeline = Pipeline.from_config(config)
+    # Then
+    assert isinstance(pipeline, DoclingPipeline)
+
+
 @pytest.mark.integration
 async def test_docling_pdf_to_markdown(
     pipeline: DoclingPipeline, docs: list[InputDoc], tmpdir: Path

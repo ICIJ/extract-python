@@ -22,19 +22,23 @@ from docling.datamodel.settings import DebugSettings
 from docling.datamodel.settings import (
     InferenceSettings as DoclingInferenceSettings,
 )
+from docling.document_converter import (
+    BoxNoteFormatOption,
+    CsvFormatOption,
+    ExcelFormatOption,
+    OdsFormatOption,
+    OdtFormatOption,
+    PowerpointFormatOption,
+    WordFormatOption,
+)
 from icij_common.pydantic_utils import (
     merge_configs,
     safe_copy,
     tagged_union,
     to_lower_snake_case,
 )
-from pydantic import (
-    ConfigDict,
-    Discriminator,
-    Field,
-    TypeAdapter,
-    WrapSerializer,
-)
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict, Discriminator, Field, TypeAdapter, WrapSerializer
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
@@ -62,8 +66,7 @@ def _ext_to_docling_input_format() -> dict:
 
 
 def _validate_pipeline_opts(v: PipelineOptions) -> PipelineOptions:
-    generate_picture_images = getattr(v, "generate_picture_images", None)
-    if generate_picture_images is False:
+    if hasattr(v, "generate_picture_images") and not v.generate_picture_images:
         msg = "generate_picture_images should be set to True"
         raise ValueError(msg)
     return v
@@ -248,13 +251,10 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     from docling.document_converter import (
         AsciiDocFormatOption,
         AudioFormatOption,
-        BoxNoteFormatOption,
-        CsvFormatOption,
         DclxFormatOption,
         EbcdicFormatOption,
         EmailFormatOption,
         EpubFormatOption,
-        ExcelFormatOption,
         FormatOption,
         HTMLFormatOption,
         ImageFormatOption,
@@ -262,13 +262,9 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         LatexFormatOption,
         MarkdownFormatOption,
         OdpFormatOption,
-        OdsFormatOption,
-        OdtFormatOption,
         PatentUsptoFormatOption,
         PdfFormatOption,
-        PowerpointFormatOption,
         VideoFormatOption,
-        WordFormatOption,
         XBRLFormatOption,
         XMLDocLangFormatOption,
         XMLJatsFormatOption,
@@ -316,16 +312,32 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         InputFormat.EBCDIC: EbcdicFormatOption(),
     }
     for fmt, opts in default.items():
-        if hasattr(opts, "generate_picture_images"):
-            opts = safe_copy(opts, update={"generate_picture_images": True})
+        pipeline_opts = opts.pipeline_options
+        if pipeline_opts is not None:
+            pipeline_opts = _dump_pipeline_opts_with_kind(pipeline_opts)
         opts = DoclingFormatOption(
             backend=opts.backend.__name__,
             backend_options=opts.backend_options,
             pipeline_cls=opts.pipeline_cls.__name__,
-            pipeline_options=opts.pipeline_options.model_dump(mode="json"),
+            pipeline_options=pipeline_opts,
         )
         default[fmt] = opts
     return default
+
+
+def _dump_pipeline_opts_with_kind(opts: PipelineOptions) -> dict:
+    if hasattr(opts, "generate_picture_images"):
+        opts = safe_copy(opts, update={"generate_picture_images": True})
+    as_dict = dict()
+    for field, value in opts:
+        value_as_dict = value
+        if isinstance(value, PydanticBaseModel):
+            value_as_dict = dict()
+            if hasattr(value, "kind"):
+                value_as_dict = {"kind": value.kind}
+            value_as_dict.update(value.model_dump(mode="python"))
+        as_dict[field] = value_as_dict
+    return as_dict
 
 
 class BatchConcurrencySettings(DoclingBatchConcurrencySettings):
