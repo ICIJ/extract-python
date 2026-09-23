@@ -245,10 +245,12 @@ class DoclingFormatOption(BaseFormatOption):
 
 
 def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
-    from docling.backend.json.docling_json_backend import DoclingJSONBackend
-    from docling.backend.mets_gbs_backend import MetsGbsDocumentBackend
-    from docling.backend.webvtt_backend import WebVTTDocumentBackend
-    from docling.document_converter import (
+    from docling.backend.json.docling_json_backend import (  # noqa: PLC0415
+        DoclingJSONBackend,
+    )
+    from docling.backend.mets_gbs_backend import MetsGbsDocumentBackend  # noqa: PLC0415
+    from docling.backend.webvtt_backend import WebVTTDocumentBackend  # noqa: PLC0415
+    from docling.document_converter import (  # noqa: PLC0415
         AsciiDocFormatOption,
         AudioFormatOption,
         DclxFormatOption,
@@ -269,8 +271,10 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         XMLDocLangFormatOption,
         XMLJatsFormatOption,
     )
-    from docling.pipeline.simple_pipeline import SimplePipeline
-    from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+    from docling.pipeline.simple_pipeline import SimplePipeline  # noqa: PLC0415
+    from docling.pipeline.standard_pdf_pipeline import (  # noqa: PLC0415
+        StandardPdfPipeline,
+    )
 
     default = {
         InputFormat.CSV: CsvFormatOption(),
@@ -315,7 +319,7 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         pipeline_opts = opts.pipeline_options
         if pipeline_opts is not None:
             pipeline_opts = _dump_pipeline_opts_with_kind(pipeline_opts)
-        opts = DoclingFormatOption(
+        opts = DoclingFormatOption(  # noqa: PLW2901
             backend=opts.backend.__name__,
             backend_options=opts.backend_options,
             pipeline_cls=opts.pipeline_cls.__name__,

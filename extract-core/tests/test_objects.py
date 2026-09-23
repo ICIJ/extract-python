@@ -27,7 +27,7 @@ def test_docling_pipeline_config() -> None:
         "format_options": {
             "pdf": {
                 "pipeline_cls": "StandardPdfPipeline",
-                "backend": "DoclingParseDocumentBackend",
+                "backend": "ThreadedDoclingParseDocumentBackend",
                 "pipeline_options": {
                     "ocr_options": {"kind": "tesserocr", "lang": ["auto"]},
                     "generate_picture_images": True,
