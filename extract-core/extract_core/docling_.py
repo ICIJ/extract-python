@@ -19,18 +19,7 @@ from docling.datamodel.settings import (
     BatchConcurrencySettings as DoclingBatchConcurrencySettings,
 )
 from docling.datamodel.settings import DebugSettings
-from docling.datamodel.settings import (
-    InferenceSettings as DoclingInferenceSettings,
-)
-from docling.document_converter import (
-    BoxNoteFormatOption,
-    CsvFormatOption,
-    ExcelFormatOption,
-    OdsFormatOption,
-    OdtFormatOption,
-    PowerpointFormatOption,
-    WordFormatOption,
-)
+from docling.datamodel.settings import InferenceSettings as DoclingInferenceSettings
 from icij_common.pydantic_utils import (
     merge_configs,
     safe_copy,
@@ -250,13 +239,16 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     )
     from docling.backend.mets_gbs_backend import MetsGbsDocumentBackend  # noqa: PLC0415
     from docling.backend.webvtt_backend import WebVTTDocumentBackend  # noqa: PLC0415
-    from docling.document_converter import (  # noqa: PLC0415
+    from docling.document_converter import (  # noqa: PLC0415  # noqa: PLC0415
         AsciiDocFormatOption,
         AudioFormatOption,
+        BoxNoteFormatOption,
+        CsvFormatOption,
         DclxFormatOption,
         EbcdicFormatOption,
         EmailFormatOption,
         EpubFormatOption,
+        ExcelFormatOption,
         FormatOption,
         HTMLFormatOption,
         ImageFormatOption,
@@ -264,9 +256,13 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         LatexFormatOption,
         MarkdownFormatOption,
         OdpFormatOption,
+        OdsFormatOption,
+        OdtFormatOption,
         PatentUsptoFormatOption,
         PdfFormatOption,
+        PowerpointFormatOption,
         VideoFormatOption,
+        WordFormatOption,
         XBRLFormatOption,
         XMLDocLangFormatOption,
         XMLJatsFormatOption,
