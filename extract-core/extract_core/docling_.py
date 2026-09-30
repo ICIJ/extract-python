@@ -1,7 +1,9 @@
 import importlib
+from copy import deepcopy
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, get_type_hints
 
+from docling.backend.image_backend import ImageDocumentBackend
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
     BaseFormatOption,
@@ -20,6 +22,15 @@ from docling.datamodel.settings import (
 )
 from docling.datamodel.settings import DebugSettings
 from docling.datamodel.settings import InferenceSettings as DoclingInferenceSettings
+from docling.document_converter import (
+    BoxNoteFormatOption,
+    CsvFormatOption,
+    ExcelFormatOption,
+    OdsFormatOption,
+    OdtFormatOption,
+    PowerpointFormatOption,
+    WordFormatOption,
+)
 from icij_common.pydantic_utils import (
     merge_configs,
     safe_copy,
@@ -31,7 +42,7 @@ from pydantic import ConfigDict, Discriminator, Field, TypeAdapter, WrapSerializ
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
-from .objects import BaseModel, Device, SupportedExt
+from .objects import BaseModel, Device, PipelineSize, SupportedExt
 from .utils import all_subclasses
 
 if TYPE_CHECKING:
@@ -233,7 +244,48 @@ class DoclingFormatOption(BaseFormatOption):
         )
 
 
-def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
+def default_format_opts(
+    *, size: PipelineSize = PipelineSize.SMALL, device: Device = Device.CPU
+) -> dict[InputFormat, DoclingFormatOption]:
+    from docling.backend.docling_parse_backend import (  # noqa: PLC0415
+        ThreadedDoclingParseDocumentBackend,
+    )
+    from docling.pipeline.threaded_standard_pdf_pipeline import (  # noqa: PLC0415
+        ThreadedStandardPdfPipeline,
+    )
+    from docling.pipeline.vlm_pipeline import VlmPipeline  # noqa: PLC0415
+
+    default = _default_format_options()
+    accelerator_opts = deepcopy(default[InputFormat.PDF].pipeline_options)[
+        "accelerator_options"
+    ]
+    accelerator_opts["device"] = device.to_docling()
+    pdf_pipeline_opts = default[InputFormat.PDF].pipeline_options
+    pdf_pipeline_opts["accelerator_options"] = accelerator_opts
+    match size:
+        case PipelineSize.LARGE:
+            pipeline = VlmPipeline.__name__
+        case _:
+            pipeline = ThreadedStandardPdfPipeline.__name__
+    backend_opts = default[InputFormat.PDF].backend_options
+    pdf_fmt_opts = DoclingFormatOption(
+        pipeline_options=pdf_pipeline_opts,
+        pipeline_cls=pipeline,
+        backend=ThreadedDoclingParseDocumentBackend.__name__,
+        backend_options=backend_opts,
+    )
+    default[InputFormat.PDF] = pdf_fmt_opts
+    image_fmt_opts = DoclingFormatOption(
+        pipeline_options=deepcopy(pdf_pipeline_opts),
+        pipeline_cls=pipeline,
+        backend=ImageDocumentBackend.__name__,
+        backend_options=deepcopy(backend_opts),
+    )
+    default[InputFormat.IMAGE] = image_fmt_opts
+    return default
+
+
+def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
     from docling.backend.json.docling_json_backend import (  # noqa: PLC0415
         DoclingJSONBackend,
     )
@@ -242,13 +294,10 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
     from docling.document_converter import (  # noqa: PLC0415  # noqa: PLC0415
         AsciiDocFormatOption,
         AudioFormatOption,
-        BoxNoteFormatOption,
-        CsvFormatOption,
         DclxFormatOption,
         EbcdicFormatOption,
         EmailFormatOption,
         EpubFormatOption,
-        ExcelFormatOption,
         FormatOption,
         HTMLFormatOption,
         ImageFormatOption,
@@ -256,13 +305,9 @@ def _default_format_opts() -> dict[InputFormat, DoclingFormatOption]:
         LatexFormatOption,
         MarkdownFormatOption,
         OdpFormatOption,
-        OdsFormatOption,
-        OdtFormatOption,
         PatentUsptoFormatOption,
         PdfFormatOption,
-        PowerpointFormatOption,
         VideoFormatOption,
-        WordFormatOption,
         XBRLFormatOption,
         XMLDocLangFormatOption,
         XMLJatsFormatOption,
@@ -361,7 +406,7 @@ class DoclingPipelineConfig(BasePipelineConfig):
     pipeline: ClassVar[PipelineType] = Field(frozen=True, default=PipelineType.DOCLING)
 
     format_options: dict[InputFormat, DoclingFormatOption] = Field(
-        default_factory=_default_format_opts
+        default_factory=default_format_opts
     )
 
     settings: DoclingSettings = Field(default_factory=DoclingSettings)

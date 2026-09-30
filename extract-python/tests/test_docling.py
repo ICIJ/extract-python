@@ -14,27 +14,32 @@ from extract_core import (
     InputDoc,
     OutputFormat,
     Pipeline,
+    PipelineType,
     ResultBufferConfig,
     Status,
 )
-from extract_core.objects import Device
+from extract_core.default_config import default_config
+from extract_core.objects import Device, PipelineSize
 from extract_python import DoclingPipeline
+from icij_common.pydantic_utils import safe_copy
 
 from . import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
-def config(device: Device, tmpdir_factory: TempdirFactory) -> DoclingPipelineConfig:
+def config(tmpdir_factory: TempdirFactory) -> DoclingPipelineConfig:
     # TODO: for testing add a lightweight configuration
+    device = Device.CPU
     fs_buffer_root = Path(tmpdir_factory.mktemp("fs_buffer_root"))
     settings = DoclingSettings(
         perf=BatchConcurrencySettings(page_batch_size=2, max_page_batches=1)
     )
-    config = DoclingPipelineConfig(
-        device=device,
-        settings=settings,
-        result_buffer=ResultBufferConfig(root=fs_buffer_root, max_size="0MB"),
+    config = default_config(
+        pipeline_type=PipelineType.DOCLING, device=device, size=PipelineSize.SMALL
     )
+    results_buffer = ResultBufferConfig(root=fs_buffer_root, max_size="0MB")
+    update = {"device": device, "settings": settings, "result_buffer": results_buffer}
+    config = safe_copy(config, update=update)
     return config
 
 

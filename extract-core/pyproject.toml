@@ -14,6 +14,14 @@ dependencies = [
   "pydantic-extra-types[pycountry]~=2.11.1",
 ]
 
+[project.optional-dependencies]
+cli = [
+  "typer~=0.21.2",
+]
+
+[project.scripts]
+extract-core = "extract_core.__main__:main"
+
 [tool.uv]
 package = true
 override-dependencies = [
@@ -83,6 +91,7 @@ dev = [
   "ruff==0.15.2",
   "torch==2.12.0",
   "torchvision==0.27.0",
+  "nest-asyncio>=1.6.0",
 ]
 
 [project.urls]

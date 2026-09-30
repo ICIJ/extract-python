@@ -5,6 +5,7 @@ import pytest
 from extract_core import (
     Device,
     InputDoc,
+    MinerUConfig,
     MinerUPipelineConfig,
     OutputFormat,
     Pipeline,
@@ -17,7 +18,7 @@ from tests import TEST_DATA_DIR
 
 @pytest.fixture(scope="session")
 def config(device: Device) -> MinerUPipelineConfig:
-    return MinerUPipelineConfig(device=device)
+    return MinerUPipelineConfig(device=device, config=MinerUConfig(tier="basic"))
 
 
 @pytest.fixture(scope="session")
@@ -45,7 +46,7 @@ async def test_miner_u_pdf_to_markdown(
         assert (output_path / p).exists()
         assert (output_path / p).is_dir()
         assert (output_path / p / p.name).with_suffix(".md").exists()
-        assert any((output_path / p).glob("artifacts/*.jpg"))
+        assert any((output_path / p).glob("artifacts/**/*.jpg"))
     assert all(r.output.pages.byte_ranges for r in res)
     assert not any(r.errors for r in res)
     input_path = [r.input.path for r in res]

@@ -43,6 +43,12 @@ class Device(StrEnum):
                 raise ValueError(f"unsupported device {self}")
 
 
+class PipelineSize(StrEnum):
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
 class SupportedExt(StrEnum):
     ADOC = ".adoc"
     AFP = ".afp"
