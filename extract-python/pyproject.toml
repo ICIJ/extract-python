@@ -30,8 +30,7 @@ marker = [
 ]
 
 mineru = [
-  "mineru[pipeline,vlm]~=3.2",
-  "mineru[mlx]~=3.2; sys_platform == 'darwin'",
+  "mineru[vlm,torch]~=4.0",
   "pydantic-extra-types[pycountry]~=2.11",
   "python-pptx~=1.0",
   "six~=1.17",
