@@ -3,7 +3,6 @@ from copy import deepcopy
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, get_type_hints
 
-from docling.backend.image_backend import ImageDocumentBackend
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
     BaseFormatOption,
@@ -22,15 +21,6 @@ from docling.datamodel.settings import (
 )
 from docling.datamodel.settings import DebugSettings
 from docling.datamodel.settings import InferenceSettings as DoclingInferenceSettings
-from docling.document_converter import (
-    BoxNoteFormatOption,
-    CsvFormatOption,
-    ExcelFormatOption,
-    OdsFormatOption,
-    OdtFormatOption,
-    PowerpointFormatOption,
-    WordFormatOption,
-)
 from icij_common.pydantic_utils import (
     merge_configs,
     safe_copy,
@@ -250,6 +240,7 @@ def default_format_opts(
     from docling.backend.docling_parse_backend import (  # noqa: PLC0415
         ThreadedDoclingParseDocumentBackend,
     )
+    from docling.backend.image_backend import ImageDocumentBackend  # noqa: PLC0415
     from docling.pipeline.threaded_standard_pdf_pipeline import (  # noqa: PLC0415
         ThreadedStandardPdfPipeline,
     )
@@ -294,10 +285,13 @@ def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
     from docling.document_converter import (  # noqa: PLC0415  # noqa: PLC0415
         AsciiDocFormatOption,
         AudioFormatOption,
+        BoxNoteFormatOption,
+        CsvFormatOption,
         DclxFormatOption,
         EbcdicFormatOption,
         EmailFormatOption,
         EpubFormatOption,
+        ExcelFormatOption,
         FormatOption,
         HTMLFormatOption,
         ImageFormatOption,
@@ -305,9 +299,13 @@ def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
         LatexFormatOption,
         MarkdownFormatOption,
         OdpFormatOption,
+        OdsFormatOption,
+        OdtFormatOption,
         PatentUsptoFormatOption,
         PdfFormatOption,
+        PowerpointFormatOption,
         VideoFormatOption,
+        WordFormatOption,
         XBRLFormatOption,
         XMLDocLangFormatOption,
         XMLJatsFormatOption,
