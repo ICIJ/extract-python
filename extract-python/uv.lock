@@ -927,7 +927,7 @@ provides-extras = ["cli"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "docling", specifier = "~=2.127" },
+    { name = "docling", specifier = "~=2.132" },
     { name = "docling-slim", extras = ["models-vlm-inline"], specifier = "~=2.127" },
     { name = "mpmath", specifier = "~=1.3.0" },
     { name = "nest-asyncio", specifier = ">=1.6.0" },
@@ -988,7 +988,7 @@ requires-dist = [
     { name = "icij-common", specifier = "~=0.8.2" },
     { name = "markdown2", marker = "extra == 'benches'", specifier = ">=2.5.4" },
     { name = "marker-pdf", marker = "extra == 'marker'", specifier = "~=1.10" },
-    { name = "mineru", extras = ["torch", "vlm"], marker = "extra == 'mineru'", specifier = "~=4.0" },
+    { name = "mineru", extras = ["torch"], marker = "extra == 'mineru'", specifier = "~=4.0" },
     { name = "notebook", marker = "extra == 'benches'", specifier = ">=7.4.5" },
     { name = "pydantic-extra-types", extras = ["pycountry"], marker = "extra == 'mineru'", specifier = "~=2.11" },
     { name = "pympler", specifier = "~=1.1" },

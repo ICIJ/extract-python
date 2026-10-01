@@ -76,6 +76,7 @@ class SupportedExt(StrEnum):
     JPEG = ".jpeg"
     JPG = ".jpg"
     JSON = ".json"
+    KEY = ".key"
     LATEX = ".latex"
     MARKDOWN = ".markdown"
     MD = ".md"
