@@ -36,7 +36,7 @@ class ResultBufferConfig(BaseModel):
 
 
 class PipelineBySize(BaseModel):
-    type: PipelineType = PipelineType.DOCLING
+    pipeline: PipelineType = PipelineType.DOCLING
     size: PipelineSize = PipelineSize.MEDIUM
 
     def to_config(self, device: Device = Device.CPU) -> BasePipelineConfig:
