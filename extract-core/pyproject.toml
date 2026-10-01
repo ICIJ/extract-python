@@ -115,12 +115,16 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
-[tool.hatch.build.targets.wheel]
-packages = ["extract_core"]
-
 [tool.hatch.build.targets.sdist]
-exclude = [
-  "tests",
+only-include = ["extract_core"]
+artifacts = [
+  "extract_core/data/docling_default_format_options.json"
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["extract_core"]
+artifacts = [
+  "extract_core/data/docling_default_format_options.json"
 ]
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0"

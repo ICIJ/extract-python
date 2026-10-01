@@ -35,3 +35,24 @@ async def display_default_config(
 ) -> None:
     config = default_config(pipeline_type=pipeline_type, device=device, size=size)
     print(config.model_dump_json(indent=2))
+
+
+_GENERATE_DEFAULT_DOCLING_FORMAT_OPTIONS = (
+    "generate docling format option to persist "
+    "them and avoid depending on docling runtime dependencies at runtime"
+)
+
+
+@configs_app.async_command(help=_GENERATE_DEFAULT_DOCLING_FORMAT_OPTIONS)
+async def generate_docling_default_format_options() -> None:
+
+    from extract_core.constants import DOCLING_DEFAULT_FORMAT_OPTIONS_PATH
+    from extract_core.docling_ import (
+        FMT_OPTS_TA,
+        generate_default_format_options,
+    )
+
+    fmt_opts = generate_default_format_options()
+    fmt_opts = FMT_OPTS_TA.dump_json(fmt_opts, polymorphic_serialization=True, indent=2)
+    DOCLING_DEFAULT_FORMAT_OPTIONS_PATH.write_bytes(fmt_opts)
+    print(fmt_opts.decode())

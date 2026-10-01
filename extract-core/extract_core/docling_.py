@@ -1,7 +1,9 @@
 import importlib
+import itertools
+from collections import defaultdict
 from copy import deepcopy
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, get_type_hints
+from typing import Annotated, Any, ClassVar, get_type_hints
 
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
@@ -32,11 +34,9 @@ from pydantic import ConfigDict, Discriminator, Field, TypeAdapter, WrapSerializ
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
+from .constants import DOCLING_DEFAULT_FORMAT_OPTIONS_PATH
 from .objects import BaseModel, Device, PipelineSize, SupportedExt
 from .utils import all_subclasses
-
-if TYPE_CHECKING:
-    pass
 
 
 @cache
@@ -234,38 +234,62 @@ class DoclingFormatOption(BaseFormatOption):
         )
 
 
+FormatOptionsBySizeAndDevice = dict[
+    PipelineSize, dict[Device, dict[InputFormat, DoclingFormatOption]]
+]
+FMT_OPTS_TA = TypeAdapter(FormatOptionsBySizeAndDevice)
+
+
 def default_format_opts(
     *, size: PipelineSize = PipelineSize.SMALL, device: Device = Device.CPU
 ) -> dict[InputFormat, DoclingFormatOption]:
+    # Load options from the FS rather than generating them. This factory is used as a
+    # default in Pydantic deserialization. Sadly _default_format_options import
+    # functions which are not in the core of docling and require a lot of deps we don't
+    # want to install.
+    # To avoid this we generate options at build time, serialize them and load them
+    # at runtime
+    return _load_format_opts()[size][device]
 
-    default = _default_format_options()
-    accelerator_opts = deepcopy(default[InputFormat.PDF].pipeline_options)[
-        "accelerator_options"
-    ]
-    accelerator_opts["device"] = device.to_docling()
-    pdf_pipeline_opts = default[InputFormat.PDF].pipeline_options
-    pdf_pipeline_opts["accelerator_options"] = accelerator_opts
-    match size:
-        case PipelineSize.LARGE:
-            pipeline = "VlmPipeline"
-        case _:
-            pipeline = "ThreadedStandardPdfPipeline"
-    backend_opts = default[InputFormat.PDF].backend_options
-    pdf_fmt_opts = DoclingFormatOption(
-        pipeline_options=pdf_pipeline_opts,
-        pipeline_cls=pipeline,
-        backend="ThreadedDoclingParseDocumentBackend",
-        backend_options=backend_opts,
-    )
-    default[InputFormat.PDF] = pdf_fmt_opts
-    image_fmt_opts = DoclingFormatOption(
-        pipeline_options=deepcopy(pdf_pipeline_opts),
-        pipeline_cls=pipeline,
-        backend="ImageDocumentBackend",
-        backend_options=deepcopy(backend_opts),
-    )
-    default[InputFormat.IMAGE] = image_fmt_opts
-    return default
+
+@cache
+def _load_format_opts() -> FormatOptionsBySizeAndDevice:
+    opts = FMT_OPTS_TA.validate_json(DOCLING_DEFAULT_FORMAT_OPTIONS_PATH.read_text())
+    return opts
+
+
+def generate_default_format_options() -> FormatOptionsBySizeAndDevice:
+    opts = defaultdict(dict)
+    for size, device in itertools.product(PipelineSize, Device):
+        default = _default_format_options()
+        accelerator_opts = deepcopy(default[InputFormat.PDF].pipeline_options)[
+            "accelerator_options"
+        ]
+        accelerator_opts["device"] = device.to_docling()
+        pdf_pipeline_opts = default[InputFormat.PDF].pipeline_options
+        pdf_pipeline_opts["accelerator_options"] = accelerator_opts
+        match size:
+            case PipelineSize.LARGE:
+                pipeline = "VlmPipeline"
+            case _:
+                pipeline = "ThreadedStandardPdfPipeline"
+        backend_opts = default[InputFormat.PDF].backend_options
+        pdf_fmt_opts = DoclingFormatOption(
+            pipeline_options=pdf_pipeline_opts,
+            pipeline_cls=pipeline,
+            backend="ThreadedDoclingParseDocumentBackend",
+            backend_options=backend_opts,
+        )
+        default[InputFormat.PDF] = pdf_fmt_opts
+        image_fmt_opts = DoclingFormatOption(
+            pipeline_options=deepcopy(pdf_pipeline_opts),
+            pipeline_cls=pipeline,
+            backend="ImageDocumentBackend",
+            backend_options=deepcopy(backend_opts),
+        )
+        default[InputFormat.IMAGE] = image_fmt_opts
+        opts[size][device] = default
+    return opts
 
 
 def _default_format_options() -> dict[InputFormat, DoclingFormatOption]:
