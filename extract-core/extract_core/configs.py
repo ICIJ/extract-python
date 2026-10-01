@@ -40,7 +40,7 @@ class PipelineBySize(BaseModel):
     size: PipelineSize = PipelineSize.MEDIUM
 
     def to_config(self, device: Device = Device.CPU) -> BasePipelineConfig:
-        from .default_config import default_config
+        from .default_config import default_config  # noqa: PLC0415
 
         return default_config(
             pipeline_type=PipelineType.DOCLING, size=self.size, device=device
