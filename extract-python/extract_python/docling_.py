@@ -182,8 +182,6 @@ def _to_markdown_doc(
     #  nested in the tree structured
     md_dir_name = path_to_artifacts_dirname(input_path)
     md_dir = output_path / md_dir_name
-    if md_dir.exists():
-        raise FileExistsError(f"directory {md_dir} already exists")
     # Let's avoid issue of duplicated input file names flattened top level
     md_filename = md_dir_name + OutputFormat.MARKDOWN
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
