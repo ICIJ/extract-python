@@ -1,9 +1,14 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from icij_common.pydantic_utils import make_enum_discriminator, tagged_union
-from pydantic import Discriminator
+from pydantic import Discriminator, Tag
 
-from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
+from .configs import (
+    BasePipelineConfig,
+    PipelineBySize,
+    PipelineType,
+    ResultBufferConfig,
+)
 from .objects import (
     BaseModel,
     ConversionOutput,
@@ -52,12 +57,26 @@ except ModuleNotFoundError:
     MinerUBackend, MinerUPipelineConfig, MinerUConfig = None, None, None
 
 
-pipeline_type_discriminator = make_enum_discriminator("pipeline", PipelineType)
+_pipeline_type_discriminator = make_enum_discriminator("pipeline", PipelineType)
+
+
+def pipeline_config_discriminator(v: Any) -> str:
+    if isinstance(v, dict):
+        size = v.get("size")
+        if size is not None:
+            return "by_size"
+        return _pipeline_type_discriminator(v)
+    if isinstance(v, PipelineBySize):
+        return "by_size"
+    return _pipeline_type_discriminator(v)
+
+
 PipelineConfig = Annotated[
     tagged_union(
         BasePipelineConfig.__subclasses__(), lambda t: t.pipeline.default.value
-    ),
-    Discriminator(pipeline_type_discriminator),
+    )
+    | Annotated[PipelineBySize, Tag("by_size")],
+    Discriminator(pipeline_config_discriminator),
 ]
 
 
@@ -79,6 +98,7 @@ __all__ = [
     "Pages",
     "Pipeline",
     "PipelineSize",
+    "PipelineBySize",
     "PipelineType",
     "Result",
     "Status",

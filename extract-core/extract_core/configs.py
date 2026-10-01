@@ -7,7 +7,7 @@ from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_value
 from icij_common.registrable import RegistrableConfig
 from pydantic import ByteSize, Field
 
-from .objects import BaseModel, Device, SupportedExt
+from .objects import BaseModel, Device, PipelineSize, SupportedExt
 
 
 class PipelineType(StrEnum):
@@ -33,3 +33,15 @@ class BasePipelineConfig(RegistrableConfig, ABC):
 class ResultBufferConfig(BaseModel):
     max_size: ByteSize = "500MiB"
     root: Path | None = None
+
+
+class PipelineBySize(BaseModel):
+    type: PipelineType = PipelineType.DOCLING
+    size: PipelineSize = PipelineSize.MEDIUM
+
+    def to_config(self, device: Device = Device.CPU) -> BasePipelineConfig:
+        from .default_config import default_config
+
+        return default_config(
+            pipeline_type=PipelineType.DOCLING, size=self.size, device=device
+        )
