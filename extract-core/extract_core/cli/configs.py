@@ -45,9 +45,10 @@ _GENERATE_DEFAULT_DOCLING_FORMAT_OPTIONS = (
 
 @configs_app.async_command(help=_GENERATE_DEFAULT_DOCLING_FORMAT_OPTIONS)
 async def generate_docling_default_format_options() -> None:
-
-    from extract_core.constants import DOCLING_DEFAULT_FORMAT_OPTIONS_PATH
-    from extract_core.docling_ import (
+    from extract_core.constants import (  # noqa: PLC0415
+        DOCLING_DEFAULT_FORMAT_OPTIONS_PATH,
+    )
+    from extract_core.docling_ import (  # noqa: PLC0415
         FMT_OPTS_TA,
         generate_default_format_options,
     )
