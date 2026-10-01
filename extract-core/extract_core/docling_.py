@@ -237,14 +237,6 @@ class DoclingFormatOption(BaseFormatOption):
 def default_format_opts(
     *, size: PipelineSize = PipelineSize.SMALL, device: Device = Device.CPU
 ) -> dict[InputFormat, DoclingFormatOption]:
-    from docling.backend.docling_parse_backend import (  # noqa: PLC0415
-        ThreadedDoclingParseDocumentBackend,
-    )
-    from docling.backend.image_backend import ImageDocumentBackend  # noqa: PLC0415
-    from docling.pipeline.threaded_standard_pdf_pipeline import (  # noqa: PLC0415
-        ThreadedStandardPdfPipeline,
-    )
-    from docling.pipeline.vlm_pipeline import VlmPipeline  # noqa: PLC0415
 
     default = _default_format_options()
     accelerator_opts = deepcopy(default[InputFormat.PDF].pipeline_options)[
@@ -255,21 +247,21 @@ def default_format_opts(
     pdf_pipeline_opts["accelerator_options"] = accelerator_opts
     match size:
         case PipelineSize.LARGE:
-            pipeline = VlmPipeline.__name__
+            pipeline = "VlmPipeline"
         case _:
-            pipeline = ThreadedStandardPdfPipeline.__name__
+            pipeline = "ThreadedStandardPdfPipeline"
     backend_opts = default[InputFormat.PDF].backend_options
     pdf_fmt_opts = DoclingFormatOption(
         pipeline_options=pdf_pipeline_opts,
         pipeline_cls=pipeline,
-        backend=ThreadedDoclingParseDocumentBackend.__name__,
+        backend="ThreadedDoclingParseDocumentBackend",
         backend_options=backend_opts,
     )
     default[InputFormat.PDF] = pdf_fmt_opts
     image_fmt_opts = DoclingFormatOption(
         pipeline_options=deepcopy(pdf_pipeline_opts),
         pipeline_cls=pipeline,
-        backend=ImageDocumentBackend.__name__,
+        backend="ImageDocumentBackend",
         backend_options=deepcopy(backend_opts),
     )
     default[InputFormat.IMAGE] = image_fmt_opts
