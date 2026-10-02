@@ -22,7 +22,11 @@ benches = [
 ]
 
 docling = [
-  "docling-slim[standard,feat-ocr-easyocr,feat-ocr-tesserocr,feat-ocr-rapidocr-onnx,feat-ocr-mac,feat-ocr-nemotron]~=2.127",
+  "docling-slim[standard,feat-ocr-easyocr,feat-ocr-tesserocr,feat-ocr-rapidocr,feat-ocr-mac]~=2.127",
+]
+
+docling-gpu = [
+  "docling-slim[feat-ocr-nemotron,models-onnxruntime,models-vlm-inline]~=2.127",
 ]
 
 marker = [
