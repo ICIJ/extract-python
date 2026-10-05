@@ -51,6 +51,9 @@ required-environments = [
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
   "sys_platform == 'linux'",
 ]
+exclude-dependencies = [
+  "mlx-vlm",
+]
 override-dependencies = [
   "pillow==11.3.0",
 ]

@@ -249,7 +249,7 @@ def default_format_opts(
     # want to install.
     # To avoid this we generate options at build time, serialize them and load them
     # at runtime
-    return _load_format_opts()[size][device]
+    return deepcopy(_load_format_opts()[size][device])
 
 
 @cache
