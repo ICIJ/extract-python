@@ -84,6 +84,7 @@ class SupportedExt(StrEnum):
     MHTML = ".mhtml"
     MSG = ".msg"
     NXML = ".nxml"
+    NUMBERS = ".numbers"
     ODP = ".odp"
     ODS = ".ods"
     ODT = ".odt"
