@@ -12,7 +12,7 @@ from .objects import InputDoc, OutputFormat, Result
 
 class Pipeline[C: BasePipelineConfig](RegistrableFromConfig, ABC):
     def __init__(self, config: C):
-        self._config = config
+        self._config = config.to_device()
         self._device = self._config.device
 
     @abstractmethod

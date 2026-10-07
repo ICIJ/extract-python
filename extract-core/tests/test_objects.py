@@ -7,7 +7,7 @@ from docling.datamodel.pipeline_options import (
 )
 from docling.document_converter import PdfFormatOption
 from extract_core import DoclingPipelineConfig, PipelineConfig
-from extract_core.objects import Device, Status
+from extract_core.objects import Status
 from pydantic import TypeAdapter
 
 
@@ -24,6 +24,7 @@ def test_docling_pipeline_config() -> None:
     ta = TypeAdapter(PipelineConfig)
     config = {
         "pipeline": "docling",
+        "device": "cpu",
         "format_options": {
             "pdf": {
                 "pipeline_cls": "StandardPdfPipeline",
@@ -42,7 +43,7 @@ def test_docling_pipeline_config() -> None:
     assert isinstance(pipeline_config, DoclingPipelineConfig)
     format_options = pipeline_config.format_options
     pdf_options = format_options[InputFormat.PDF]
-    pdf_pipeline_options = pdf_options.to_docling(Device.CPU)
+    pdf_pipeline_options = pdf_options.to_docling()
 
     expected_options = PdfFormatOption(
         pipeline_options=ThreadedPdfPipelineOptions(

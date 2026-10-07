@@ -1,5 +1,6 @@
+from copy import deepcopy
 from functools import cache
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from pydantic import Field
 
@@ -38,3 +39,6 @@ class MarkerPipelineConfig(BasePipelineConfig):
             SupportedExt.GIF,
             SupportedExt.TIFF,
         }
+
+    def to_device(self) -> Self:
+        return deepcopy(self)

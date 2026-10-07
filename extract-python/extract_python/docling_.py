@@ -59,8 +59,7 @@ class DoclingPipeline(Pipeline):
     def __init__(self, config: DoclingPipelineConfig):
         super().__init__(config)
         format_options = {
-            k: v.to_docling(self._device)
-            for k, v in self._config.format_options.items()
+            k: v.to_docling() for k, v in self._config.format_options.items()
         }
         logger.info(
             "resolved format options to: %s",

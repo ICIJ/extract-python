@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from icij_common.pydantic_utils import icij_config, merge_configs, no_enum_values_config
 from icij_common.registrable import RegistrableConfig
@@ -28,6 +28,9 @@ class BasePipelineConfig(RegistrableConfig, ABC):
     @classmethod
     @abstractmethod
     def supported_exts(cls) -> set[SupportedExt]: ...
+
+    @abstractmethod
+    def to_device(self) -> Self: ...
 
 
 class ResultBufferConfig(BaseModel):

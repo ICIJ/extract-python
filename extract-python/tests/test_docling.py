@@ -107,7 +107,7 @@ def test_should_serialize_and_deserialize_format_options() -> None:
     serialized = serializable.model_dump(polymorphic_serialization=True)
     # Then
     deserialized = DoclingFormatOption.model_validate(serialized)
-    assert deserialized.to_docling(Device.CPU).model_dump() == format_opts.model_dump()
+    assert deserialized.to_docling().model_dump() == format_opts.model_dump()
 
 
 def test_should_configure_pipeline_with_cuda_accelerator() -> None:

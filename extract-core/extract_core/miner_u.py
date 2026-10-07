@@ -1,7 +1,8 @@
 from collections.abc import Callable
+from copy import deepcopy
 from enum import StrEnum
 from functools import cache
-from typing import ClassVar, Literal
+from typing import ClassVar, Literal, Self
 
 from mineru.config import VlmConfig
 from mineru.types import Tier
@@ -44,3 +45,6 @@ class MinerUPipelineConfig(BasePipelineConfig):  # noqa: F821
             SupportedExt.PPTX,
             SupportedExt.XLSX,
         }
+
+    def to_device(self) -> Self:
+        return deepcopy(self)

@@ -3,7 +3,7 @@ import itertools
 from collections import defaultdict
 from copy import deepcopy
 from functools import cache
-from typing import Annotated, Any, ClassVar, get_type_hints
+from typing import Annotated, Any, ClassVar, Self, get_type_hints
 
 from docling.datamodel.backend_options import BackendOptions, BaseBackendOptions
 from docling.datamodel.base_models import (
@@ -159,7 +159,6 @@ def _table_structure_opts_type_adapter() -> TypeAdapter:
 def _resolve_pipeline_options(
     pipeline_options: dict[str, Any] | None,
     pipeline_cls: type,
-    device: Device,
 ) -> PipelineOptions:
     option_cls = _find_init_arg_type(pipeline_cls, "pipeline_options")
     if pipeline_options is None:
@@ -198,10 +197,6 @@ def _resolve_pipeline_options(
         )
         pipeline_options["table_structure_options"] = table_structure_opts
     pipeline_options = option_cls.model_validate(pipeline_options)
-    accelerator_opts = getattr(pipeline_options, "accelerator_options", None)
-    if accelerator_opts is not None:
-        accelerator_opts.device = device.to_docling()
-        pipeline_options.accelerator_options = accelerator_opts
     return pipeline_options
 
 
@@ -218,13 +213,11 @@ class DoclingFormatOption(BaseFormatOption):
     pipeline_cls: str
     pipeline_options: dict[str, Any] | None = None
 
-    def to_docling(self, device: Device) -> BaseFormatOption:  # noqa: ANN201
+    def to_docling(self) -> BaseFormatOption:  # noqa: ANN201
         from docling.document_converter import FormatOption  # noqa: PLC0415
 
         pipeline_cls = _resolve_pipeline_cls(self.pipeline_cls)
-        pipeline_opts = _resolve_pipeline_options(
-            self.pipeline_options, pipeline_cls, device
-        )
+        pipeline_opts = _resolve_pipeline_options(self.pipeline_options, pipeline_cls)
         pipeline_opts = _validate_pipeline_opts(pipeline_opts)
         return FormatOption(
             pipeline_cls=pipeline_cls,
@@ -448,3 +441,23 @@ class DoclingPipelineConfig(BasePipelineConfig):
     def with_setting(self, settings: DoclingSettings) -> "DoclingPipelineConfig":
         update = {"settings": settings}
         return safe_copy(self, update=update)
+
+    def to_device(self) -> Self:
+        device = self.device.to_docling()
+        new_format_opts = dict()
+        for fmt, fmt_opts in self.format_options.items():
+            pipeline_opts = fmt_opts.pipeline_options
+            if pipeline_opts is None:
+                pipeline_opts = {"generate_picture_images": True}
+            accelerator_opts = pipeline_opts.get("accelerator_options", dict())
+            accelerator_opts["device"] = device
+            pipeline_opts["accelerator_options"] = accelerator_opts
+            update = {"pipeline_options": pipeline_opts}
+            new_format_opts[fmt] = safe_copy(fmt_opts, update=update)
+
+        return DoclingPipelineConfig(
+            device=self.device,
+            format_options=new_format_opts,
+            settings=self.settings,
+            result_buffer=self.result_buffer,
+        )

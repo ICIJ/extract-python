@@ -14,6 +14,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cli = [
+  "typer~=0.21.2",
+]
+
 benches = [
   "html2image~=2.0.7",
   "markdown2>=2.5.4",
@@ -57,6 +61,9 @@ exclude-dependencies = [
 override-dependencies = [
   "pillow==11.3.0",
 ]
+
+[project.scripts]
+extract_python = "extract_python.__main__:main"
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

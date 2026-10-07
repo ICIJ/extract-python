@@ -47,14 +47,18 @@ def test_format_option_ser() -> None:
     assert deserialized == config
 
 
-def test_docling_format_options_should_resolve_gpu_accelerator() -> None:
+def test_docling_pipeline_should_resolve_cuda_accelerator() -> None:
     # Given
-    device = Device.CUDA
     format_opts = DoclingFormatOption(
-        backend="PdfDocumentBackend", pipeline_cls="VlmPipeline"
+        backend="PdfDocumentBackend",
+        pipeline_cls="VlmPipeline",
+    )
+    config = DoclingPipelineConfig(
+        device=Device.CUDA, format_options={InputFormat.PDF: format_opts}
     )
     # When
-    as_docling = format_opts.to_docling(device)
+    config = config.to_device()
     # Then
-    accelerator_opts = as_docling.pipeline_options.accelerator_options
-    assert accelerator_opts.device is AcceleratorDevice.CUDA
+    pdf_fmt_opts = config.format_options[InputFormat.PDF]
+    device = pdf_fmt_opts.pipeline_options["accelerator_options"]["device"]
+    assert device is AcceleratorDevice.CUDA
