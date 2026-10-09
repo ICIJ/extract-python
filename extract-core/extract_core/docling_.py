@@ -17,6 +17,7 @@ from docling.datamodel.pipeline_options import (
     OcrOptions,
     PictureDescriptionBaseOptions,
     PipelineOptions,
+    VlmConvertOptions,
 )
 from docling.datamodel.settings import (
     BatchConcurrencySettings as DoclingBatchConcurrencySettings,
@@ -264,6 +265,11 @@ def generate_default_format_options() -> FormatOptionsBySizeAndDevice:
         match size:
             case PipelineSize.LARGE:
                 pipeline = "VlmPipeline"
+                vlm_options = VlmConvertOptions.from_preset("granite_docling")
+                vlm_options = vlm_options.model_dump(
+                    mode="json", polymorphic_serialization=True
+                )
+                pdf_pipeline_opts["vlm_options"] = vlm_options
             case _:
                 pipeline = "ThreadedStandardPdfPipeline"
         backend_opts = default[InputFormat.PDF].backend_options

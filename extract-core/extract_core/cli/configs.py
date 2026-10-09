@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 
 import typer
@@ -54,6 +55,9 @@ async def generate_docling_default_format_options() -> None:
     )
 
     fmt_opts = generate_default_format_options()
-    fmt_opts = FMT_OPTS_TA.dump_json(fmt_opts, polymorphic_serialization=True, indent=2)
-    DOCLING_DEFAULT_FORMAT_OPTIONS_PATH.write_bytes(fmt_opts)
-    print(fmt_opts.decode())
+    fmt_opts = FMT_OPTS_TA.dump_python(
+        fmt_opts, mode="json", polymorphic_serialization=True
+    )
+    fmt_opts = json.dumps(fmt_opts, indent=2, sort_keys=True)
+    DOCLING_DEFAULT_FORMAT_OPTIONS_PATH.write_text(fmt_opts)
+    print(fmt_opts)
