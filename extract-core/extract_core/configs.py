@@ -46,5 +46,5 @@ class PipelineBySize(BaseModel):
         from .default_config import default_config  # noqa: PLC0415
 
         return default_config(
-            pipeline_type=PipelineType.DOCLING, size=self.size, device=device
+            pipeline_type=self.pipeline, size=self.size, device=device
         )
