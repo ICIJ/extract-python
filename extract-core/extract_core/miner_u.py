@@ -2,10 +2,8 @@ from collections.abc import Callable
 from copy import deepcopy
 from enum import StrEnum
 from functools import cache
-from typing import ClassVar, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
-from mineru.config import VlmConfig
-from mineru.types import Tier
 from pydantic import Field
 from pydantic_extra_types.language_code import LanguageAlpha2
 
@@ -24,10 +22,10 @@ class MinerUBackend(StrEnum):
 class MinerUConfig(BaseModel):
     backend: MinerUBackend = MinerUBackend.PIPELINE
 
-    tier: Tier = "basic"
+    tier: Literal["flash", "basic", "standard", "advanced"] = "basic"
     parse_mode: Literal["auto", "txt", "ocr"] = "auto"
     image_analysis: bool = True
-    vlm_config: VlmConfig | None = None
+    vlm_config: dict[str, Any] | None = None
 
 
 class MinerUPipelineConfig(BasePipelineConfig):  # noqa: F821

@@ -16,7 +16,8 @@ from extract_core import (
     Result,
     Status,
 )
-from mineru import MiddleJson, ParseResult
+from mineru import MiddleJson, MinerUParser, ParseResult
+from mineru.config import VlmConfig
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import path_to_artifacts_dirname, reset_env, write_pages
@@ -34,18 +35,18 @@ class MinerUPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncIterable[Result]:
-        from mineru import MinerUParser  # noqa: PLC0415
 
         with reset_env():
             os.environ["MINERU_DEVICE_MODE"] = self._device
             # TODO: exclude files which are not pdf and return an error
             # TODO: we should only process valid PDFs
             config = self._config.config
+            vlm_config = VlmConfig.model_validate(config.vlm_config)
             parser = MinerUParser(
-                tier=config.tier,
+                tier=config.tier.to_mineru(),
                 parse_mode=config.parse_mode,
                 image_analysis=config.image_analysis,
-                vlm_config=config.vlm_config,
+                vlm_config=vlm_config,
             )
             for doc in docs:
                 res = await parser.parse_async(doc.path)
