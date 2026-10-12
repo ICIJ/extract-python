@@ -41,9 +41,11 @@ class MinerUPipeline(Pipeline):
             # TODO: exclude files which are not pdf and return an error
             # TODO: we should only process valid PDFs
             config = self._config.config
-            vlm_config = VlmConfig.model_validate(config.vlm_config)
+            vlm_config = None
+            if config.vlm_config is not None:
+                vlm_config = VlmConfig.model_validate(config.vlm_config)
             parser = MinerUParser(
-                tier=config.tier.to_mineru(),
+                tier=config.tier,
                 parse_mode=config.parse_mode,
                 image_analysis=config.image_analysis,
                 vlm_config=vlm_config,
