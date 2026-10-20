@@ -56,6 +56,11 @@ try:
 except ModuleNotFoundError:
     MinerUBackend, MinerUPipelineConfig, MinerUConfig = None, None, None
 
+try:
+    from .liteparse_ import LiteParseConfig, LiteParsePipelineConfig
+except ModuleNotFoundError:
+    LiteParsePipelineConfig, LiteParseConfig = None, None
+
 
 _pipeline_type_discriminator = make_enum_discriminator("pipeline", PipelineType)
 
@@ -81,6 +86,8 @@ PipelineConfig = Annotated[
 
 
 __all__ = [
+    "LiteParsePipelineConfig",
+    "LiteParseConfig",
     "BaseModel",
     "BasePipelineConfig",
     "ConversionOutput",

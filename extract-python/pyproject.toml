@@ -33,6 +33,13 @@ docling-gpu = [
   "docling-slim[feat-ocr-nemotron,models-onnxruntime,models-vlm-inline]~=2.127",
 ]
 
+liteparse = [
+    "liteparse~=2.15",
+    "pillow~=11.0",
+    "pypdfium2~=4.0",
+    "tesserocr~=2.7",
+]
+
 marker = [
   "marker-pdf~=1.10",
 ]
@@ -45,9 +52,17 @@ mineru = [
 ]
 
 [tool.uv]
+environments = [
+    "sys_platform == 'darwin'",
+    "sys_platform == 'linux'",
+]
 conflicts = [
   [
     { extra = "marker" },
+    { extra = "mineru" },
+  ],
+  [
+    { extra = "liteparse" },
     { extra = "mineru" },
   ],
 ]

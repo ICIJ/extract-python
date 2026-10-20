@@ -12,6 +12,7 @@ from .objects import BaseModel, Device, PipelineSize, SupportedExt
 
 class PipelineType(StrEnum):
     DOCLING = "docling"
+    LITEPARSE = "liteparse"
     MARKER = "marker"
     MINER_U = "miner_u"
 

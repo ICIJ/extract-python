@@ -12,6 +12,8 @@ def default_config(
             return _default_marker_config(size)
         case PipelineType.MINER_U:
             return _default_mineru_config(size)
+        case PipelineType.LITEPARSE:
+            return _default_liteparse_config()
         case _:
             raise NotImplementedError(f"unsupported pipeline type {pipeline_type}")
 
@@ -46,3 +48,9 @@ def _default_mineru_config(size: PipelineSize) -> BasePipelineConfig:
         case _:
             raise TypeError(f"unsupported pipeline size {size}")
     return MinerUPipelineConfig(config=MinerUConfig(tier=tier))
+
+
+def _default_liteparse_config() -> BasePipelineConfig:
+    from .liteparse_ import LiteParsePipelineConfig  # noqa: PLC0415
+
+    return LiteParsePipelineConfig()

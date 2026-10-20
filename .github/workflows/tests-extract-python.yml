@@ -55,7 +55,7 @@ jobs:
       - name: Run tests
         run: |
           cd extract-python
-          uv sync --dev --extra docling --extra marker --frozen
+          uv sync --dev --extra docling --extra marker --extra liteparse --frozen
           uv run --frozen pytest -m "not miner_u" -vvv --cache-clear --show-capture=all -r A tests
 
   tests-miner-u:

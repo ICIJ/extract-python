@@ -21,10 +21,16 @@ except ModuleNotFoundError:
     logger.warning("mineru is not available, might be optional...")
     MinerUPipeline = None
 
+try:
+    from .liteparse_ import LiteParsePipeline
+except ModuleNotFoundError:
+    logger.warning("liteparse is not available, might be optional...")
+    LiteParsePipeline = None
 
 __all__ = [
     "DoclingPipeline",
     "DOCLING_DEFAULT_ARTIFACTS_PATH",
     "MarkerPipeline",
     "MinerUPipeline",
+    "LiteParsePipeline",
 ]

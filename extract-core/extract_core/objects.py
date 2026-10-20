@@ -106,11 +106,13 @@ class SupportedExt(StrEnum):
     QMD = ".qmd"
     RMD = ".rmd"
     RTF = ".rtf"
+    SVG = ".svg"
     TEX = ".tex"
+    TEXT = ".text"
     TIF = ".tif"
     TIFF = ".tiff"
+    TSV = ".tsv"
     TXT = ".txt"
-    TEXT = ".text"
     WEBP = ".webp"
     XBRL = ".xbrl"
     XHTML = ".xhtml"
@@ -210,6 +212,12 @@ class Error(BaseModel):
             f" {docling_error.component_type}:\n{docling_error.error_message}"
         )
         return cls(id=error_id, title=title, detail=detail)
+
+    @classmethod
+    def from_liteparse(cls, liteparse_error) -> Self:  # noqa: ANN001
+        title = "LiteParseConversionError"
+        error_id = f"{_id_title(title)}-{uuid.uuid4().hex}"
+        return cls(id=error_id, title=title, detail=liteparse_error.message)
 
 
 def _id_title(title: str) -> str:
