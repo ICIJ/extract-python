@@ -1,10 +1,18 @@
+import asyncio
 import itertools
 import logging
 import os
 import shutil
 import uuid
 from collections import defaultdict, deque
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import (
+    AsyncIterable,
+    Callable,
+    Coroutine,
+    Generator,
+    Iterable,
+    Iterator,
+)
 from contextlib import contextmanager
 from copy import copy
 from dataclasses import dataclass
@@ -13,7 +21,8 @@ from itertools import tee
 from pathlib import Path, PurePath
 from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import BinaryIO, Protocol, Self
+from typing import Any, BinaryIO, Protocol, Self
+from warnings import deprecated
 
 from extract_core import Error, InputDoc, Pages, Result, Status
 from pympler import asizeof
@@ -103,10 +112,61 @@ class ProcessedPages:
     page_range: Range | None = None
 
     @property
-    def page_length(self) -> int:
+    def n_pages(self) -> int:
         if self.page_range is None:
             return self.doc.n_pages
         return self.page_range[1] - self.page_range[0]
+
+    @property
+    @deprecated("Use n_pages instead")
+    def page_length(self) -> int:
+        return self.n_pages
+
+
+def chunk_docs(
+    docs: Iterable[InputDoc], n_pages: int, *, offset: int = 0
+) -> Iterable[ProcessedPages]:
+    for doc_i, doc in enumerate(docs):
+        doc_idx = offset + doc_i
+        for i in range(0, doc.n_pages, n_pages):
+            start = i
+            end = min(start + n_pages, doc.n_pages)
+            rng = (start, end)
+            pages = ProcessedPages(doc=doc, doc_idx=doc_idx, page_range=rng)
+            yield pages
+
+
+class UsageTracker:
+    def __init__(self):
+        self._usages = 0
+        self._lock = asyncio.Lock()
+        self._is_free = asyncio.Event()
+
+    async def __aenter__(self) -> Self:
+        await self.acquire()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ):
+        await self.release()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            self._is_free.clear()
+            self._usages += 1
+
+    async def release(self) -> None:
+        async with self._lock:
+            self._usages -= 1
+            if self._usages == 0:
+                self._is_free.set()
+
+    async def wait_until_free(self) -> None:
+        await self._is_free.wait()
 
 
 class ResultBuffer[R]:
@@ -163,7 +223,7 @@ class ResultBuffer[R]:
             raise ValueError(msg)
         return self.__fs_buffer_path
 
-    def add(self, processed: ProcessedPages, result: R) -> None:
+    def add(self, processed: ProcessedPages, result: R) -> bool:
         size = asizeof.asizeof(result)
         if self._current_size + size > self._max_bytes:
             path = self._page_path(processed.doc_idx)
@@ -174,7 +234,8 @@ class ResultBuffer[R]:
         self._mem_buffer[processed.doc_idx].append(result)
         if processed.doc_idx not in self._missing_pages:
             self._missing_pages[processed.doc_idx] = processed.doc.n_pages
-        self._missing_pages[processed.doc_idx] -= processed.page_length
+        self._missing_pages[processed.doc_idx] -= processed.n_pages
+        return self.is_complete(processed.doc_idx)
 
     def is_complete(self, doc: int) -> bool:
         return self._missing_pages[doc] == 0
@@ -294,3 +355,35 @@ def _by_page_ranges(
     for v in by_range.values():
         yield tuple(v)
     return doc_idx
+
+
+async def publish_and_consume[R](
+    publisher: Coroutine[Any, Any, Any], *, consumer: AsyncIterable[R]
+) -> AsyncIterable[R]:
+    # Publish and consume concurrently
+    logger.debug("starting publish and consume")
+    publish_t = asyncio.create_task(publisher)
+    sentinel = object()
+    consume_t = asyncio.create_task(anext(consumer, sentinel))
+    awaited = [publish_t, consume_t]
+    while awaited:
+        done, pending = await asyncio.wait(awaited, return_when=asyncio.FIRST_COMPLETED)
+        for d in done:
+            # Stop everything case of exception
+            exc = d.exception()
+            if exc:
+                for p in pending:
+                    p.cancel()
+                raise exc
+        if publish_t in done:
+            awaited = [t for t in awaited if t is not publish_t]
+        if consume_t in done:
+            res = consume_t.result()
+            if res is sentinel:
+                awaited = [t for t in awaited if t is not consume_t]
+            else:
+                yield res
+                awaited = [t for t in awaited if t is not consume_t]
+                consume_t = asyncio.create_task(anext(consumer, sentinel))
+                awaited.append(consume_t)
+    logger.debug("done with publish and consume !")

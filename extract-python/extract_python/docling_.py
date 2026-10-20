@@ -101,8 +101,8 @@ class DoclingPipeline(Pipeline):
                     if res is sentinel:
                         break
                     pages = next(processed)
-                    buffer.add(pages, res)
-                    if buffer.is_complete(pages.doc_idx):
+                    is_complete = buffer.add(pages, res)
+                    if is_complete:
                         doc_pages = buffer.pop_complete(pages.doc_idx)
                         yield _to_result(
                             doc_pages, pages.doc, output_format, output_path=output_path
