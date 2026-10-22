@@ -59,10 +59,6 @@ class LiteParseConfig(BaseModel):
     extract_vector_graphics: bool = False
 
 
-def _default_n_cpu() -> int:
-    return os.cpu_count() - 1
-
-
 class LiteParsePipelineConfig(BasePipelineConfig):
     pipeline: ClassVar[PipelineType] = Field(
         frozen=True, default=PipelineType.LITEPARSE
@@ -74,7 +70,7 @@ class LiteParsePipelineConfig(BasePipelineConfig):
 
     detect_page_orientation: bool = True
 
-    n_cpus: int = Field(default_factory=_default_n_cpu)
+    n_cpus: int = Field(default_factory=os.cpu_count)
     page_batch_size: int = 8
     per_page_timeout: timedelta | None = None
 
