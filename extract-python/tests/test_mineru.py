@@ -26,7 +26,7 @@ def pipeline(config: MinerUPipelineConfig) -> MinerUPipeline:
     return cast(MinerUPipeline, Pipeline.from_config(config=config))
 
 
-@pytest.mark.miner_u
+@pytest.mark.mineru
 @pytest.mark.integration
 async def test_miner_u_pdf_to_markdown(
     pipeline: MinerUPipeline, docs: list[InputDoc], tmpdir: Path
