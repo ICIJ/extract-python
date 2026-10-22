@@ -14,7 +14,7 @@ class PipelineType(StrEnum):
     DOCLING = "docling"
     LITEPARSE = "liteparse"
     MARKER = "marker"
-    MINER_U = "miner_u"
+    MINER_U = "mineru"
 
 
 class BasePipelineConfig(RegistrableConfig, ABC):
