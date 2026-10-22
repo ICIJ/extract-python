@@ -10,6 +10,7 @@ from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
 from .objects import BaseModel, Device, SupportedExt
 
 _SUPPORTED_EXTS = {
+    SupportedExt.PDF,
     SupportedExt.DOC,
     SupportedExt.DOCX,
     SupportedExt.DOCM,
