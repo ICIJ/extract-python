@@ -36,7 +36,7 @@ def _default_marker_config(size: PipelineSize) -> BasePipelineConfig:
 
 
 def _default_mineru_config(size: PipelineSize) -> BasePipelineConfig:
-    from .miner_u import MinerUConfig, MinerUPipelineConfig  # noqa: PLC0415
+    from .mineru_ import MinerUConfig, MinerUPipelineConfig  # noqa: PLC0415
 
     match size:
         case PipelineSize.SMALL:

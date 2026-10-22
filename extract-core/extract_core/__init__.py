@@ -52,7 +52,7 @@ except ModuleNotFoundError:
     MarkerPipelineConfig = None
 
 try:
-    from .miner_u import MinerUBackend, MinerUConfig, MinerUPipelineConfig
+    from .mineru_ import MinerUBackend, MinerUConfig, MinerUPipelineConfig
 except ModuleNotFoundError:
     MinerUBackend, MinerUPipelineConfig, MinerUConfig = None, None, None
 
