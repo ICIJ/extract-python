@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 
 
 try:
-    from .miner_u import MinerUPipeline
+    from .mineru_ import MinerUPipeline
 except ModuleNotFoundError:
     logger.warning("mineru is not available, might be optional...")
     MinerUPipeline = None
