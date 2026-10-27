@@ -28,7 +28,7 @@ def pipeline(config: MinerUPipelineConfig) -> MinerUPipeline:
 
 @pytest.mark.mineru
 @pytest.mark.integration
-async def test_miner_u_pdf_to_markdown(
+async def test_mineru_pdf_to_markdown(
     pipeline: MinerUPipeline, docs: list[InputDoc], tmpdir: Path
 ) -> None:
     # Given

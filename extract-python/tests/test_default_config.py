@@ -6,7 +6,7 @@ from extract_core.default_config import default_config
 
 
 # This test should belong to the core but the core has no split test between
-# conflicting miner_u/marker
+# conflicting mineru/marker
 @pytest.mark.parametrize(
     ("pipeline_type", "device", "size"),
     list(product([PipelineType.DOCLING, PipelineType.MARKER], Device, PipelineSize)),
@@ -20,7 +20,7 @@ def test_default_config_should_be_define_for_all_input_parameters(
     assert isinstance(config, BasePipelineConfig)
 
 
-@pytest.mark.miner_u
+@pytest.mark.mineru
 @pytest.mark.parametrize(
     ("device", "size"),
     list(product(Device, PipelineSize)),

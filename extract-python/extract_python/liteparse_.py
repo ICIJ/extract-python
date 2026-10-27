@@ -26,7 +26,6 @@ from extract_core import (
     SupportedExt,
 )
 from pydantic import TypeAdapter
-from tesserocr import tesserocr
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import (
