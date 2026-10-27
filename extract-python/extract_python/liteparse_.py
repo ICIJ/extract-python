@@ -554,6 +554,10 @@ class _PDFDocCache:
             self._path = path
         return self._doc
 
+    def __del__(self):
+        if self._doc is not None:
+            self._doc.close()
+
 
 # we have to use a global cache because pdfnium is not thread safe and not
 # pickleable
