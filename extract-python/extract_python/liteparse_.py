@@ -43,6 +43,7 @@ from .utils import (
 logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     import pypdfium2 as pdfium
+    import tesserocr
     from liteparse import LiteParse
     from liteparse.types import (
         ExtractedImage,
