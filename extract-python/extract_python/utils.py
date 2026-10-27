@@ -6,14 +6,16 @@ import shutil
 import uuid
 from collections import defaultdict, deque
 from collections.abc import (
+    AsyncGenerator,
     AsyncIterable,
+    Awaitable,
     Callable,
     Coroutine,
     Generator,
     Iterable,
     Iterator,
 )
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from copy import copy
 from dataclasses import dataclass
 from functools import wraps
@@ -138,35 +140,38 @@ def chunk_docs(
 
 class UsageTracker:
     def __init__(self):
-        self._usages = 0
+        self._usages = defaultdict(int)
         self._lock = asyncio.Lock()
-        self._is_free = asyncio.Event()
+        self._is_free = dict()
 
-    async def __aenter__(self) -> Self:
-        await self.acquire()
-        return self
+    @asynccontextmanager
+    async def track(self, obj: Any) -> AsyncGenerator[None]:
+        await self.acquire(obj)
+        try:
+            yield
+        finally:
+            await self.release(obj)
 
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ):
-        await self.release()
-
-    async def acquire(self) -> None:
+    async def acquire(self, obj: Any) -> None:
+        key = _obj_key(obj)
         async with self._lock:
-            self._is_free.clear()
-            self._usages += 1
+            if key not in self._is_free:
+                self._is_free[key] = asyncio.Event()
+            self._usages[key] += 1
 
-    async def release(self) -> None:
+    async def release(self, obj: Any) -> None:
+        key = _obj_key(obj)
         async with self._lock:
-            self._usages -= 1
-            if self._usages == 0:
-                self._is_free.set()
+            self._usages[key] -= 1
+            if self._usages[key] == 0:
+                self._is_free[key].set()
 
-    async def wait_until_free(self) -> None:
-        await self._is_free.wait()
+    async def wait_until_free(self, obj: Any) -> None:
+        await self._is_free[_obj_key(obj)].wait()
+
+
+def _obj_key(obj: Any) -> int:
+    return id(obj)
 
 
 class ResultBuffer[R]:
@@ -387,3 +392,19 @@ async def publish_and_consume[R](
                 consume_t = asyncio.create_task(anext(consumer, sentinel))
                 awaited.append(consume_t)
     logger.debug("done with publish and consume !")
+
+
+async def _run_with_concurrency(
+    aws: Iterable[Coroutine | asyncio.Future], max_concurrency: int
+) -> AsyncGenerator:
+    max_concurrency = asyncio.Semaphore(max_concurrency)
+    aws = (_run_with_semaphore(aw, max_concurrency) for aw in aws)
+    async for res in asyncio.as_completed(aws):
+        yield await res
+
+
+async def _run_with_semaphore[T](
+    aws: Awaitable[T] | asyncio.Future, sem: asyncio.Semaphore
+) -> T:
+    async with sem:
+        return await aws

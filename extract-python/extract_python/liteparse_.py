@@ -3,17 +3,21 @@ import logging
 import os
 from collections import defaultdict
 from collections.abc import AsyncIterable, Callable, Generator, Iterable, Sequence
+from concurrent import futures
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cache
 from itertools import batched
+from multiprocessing import get_context
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Self, cast
+from typing import TYPE_CHECKING, Literal, Self
 
 from extract_core import (
     ConversionOutput,
     Error,
     InputDoc,
+    LiteParsePipelineConfig,
     OutputFormat,
     Pipeline,
     PipelineType,
@@ -22,6 +26,7 @@ from extract_core import (
     SupportedExt,
 )
 from pydantic import TypeAdapter
+from tesserocr import tesserocr
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import (
@@ -29,6 +34,7 @@ from .utils import (
     Range,
     ResultBuffer,
     UsageTracker,
+    _run_with_concurrency,
     chunk_docs,
     path_to_artifacts_dirname,
     publish_and_consume,
@@ -37,6 +43,7 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
+    import pypdfium2 as pdfium
     from liteparse import LiteParse
     from liteparse.types import (
         ExtractedImage,
@@ -45,8 +52,6 @@ if TYPE_CHECKING:
         ParsedPage,
         ParseResult,
     )
-    from PIL import Image
-    from tesserocr import PyTessBaseAPI
 
 _LITEPARSE_CONVERSION_ERRORS = tuple()
 
@@ -99,6 +104,9 @@ ResultAggregator = Callable[[InputDoc, list[LiteParsePageResult], Path], Result]
 
 @Pipeline.register(PipelineType.LITEPARSE)
 class LiteParsePipeline(Pipeline):
+    def __init__(self, config: LiteParsePipelineConfig):
+        super().__init__(config)
+
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncIterable[Result]:
@@ -108,99 +116,69 @@ class LiteParsePipeline(Pipeline):
         if tessdata_path is None:
             msg = "couldn't find tessdata path in config nor TESSDATA_PREFIX env var"
             raise RuntimeError(msg)
-        self._tessdata_path = str(tessdata_path)
+        self._tessdata_path = Path(tessdata_path)
         if self._config.detect_page_orientation:
             logger.info("reading docs page orientation detection...")
             batches = await self._batch_per_orientation(docs)
-            logger.info("done with page orientation detection !")
         else:
             batches = chunk_docs(docs, self._config.page_batch_size)
             batches = ((None, (c,)) for c in batches)
+        logger.info("parsing pages...")
         async for res in self._parse(batches, output_format, output_path):
             yield res
 
     async def _batch_per_orientation(
         self, docs: Iterable[InputDoc]
     ) -> list[OrientedBatch]:
-        result_queue = asyncio.Queue()
-        publisher = self._batch_publisher(docs, result_queue)
-        consumer = self._batch_consumer(result_queue)
-        batches = [b async for b in publish_and_consume(publisher, consumer=consumer)]
+        logger.info("computing page complexities...")
+        complexities = await self._compute_complexities(docs)
+        batches = [b async for b in self._batch_with_orientation(complexities)]
         return batches
 
-    async def _batch_publisher(
-        self, docs: Iterable[InputDoc], queue: asyncio.Queue
-    ) -> None:
-        sem = asyncio.Semaphore(self._config.n_cpus - 1)
-        logger.debug("creating page complexity parser...")
-        parser = self._make_complexity_parser()
-        logger.debug("creating page complexity parser...")
-        parser.warm_up()
-        with parser:
-            async with asyncio.TaskGroup() as tg:
-                for doc in docs:
-                    if doc.ext == SupportedExt.PDF:
-                        task = self._detect_complexity_and_queue(
-                            parser, doc, queue, sem
-                        )
-                        tg.create_task(task)
-                    else:
-                        queue.put_nowait((doc, None))
-        queue.put_nowait(None)
+    async def _compute_complexities(
+        self, docs: Iterable[InputDoc]
+    ) -> list[tuple[InputDoc, list["PageComplexityStats"]]]:
+        docs = list(docs)
+        batches = (pages for pages in chunk_docs(docs, self._config.page_batch_size))
+        aws = (_compute_batch_complexities(batch) for batch in batches)
+        batches = defaultdict(list)
+        async for pages, res in _run_with_concurrency(aws, self._config.n_cpus):
+            batches[pages.doc_idx].extend(res)
+        batches = [
+            (docs[doc_idx], sorted(comps, key=lambda c: c.page_number))
+            for doc_idx, comps in batches.items()
+        ]
+        return batches
 
-    async def _batch_consumer(
-        self, queue: asyncio.Queue
+    async def _batch_with_orientation(
+        self, complexities: list[tuple[InputDoc, list["PageComplexityStats"]]]
     ) -> AsyncIterable[OrientedBatch]:
-        import pypdfium2 as pdfium  # noqa: PLC0415
-        import tesserocr  # noqa: PLC0415
-        from liteparse.types import PageComplexityStats  # noqa: PLC0415
-
         batch_size = self._config.page_batch_size
-        osd_reader = tesserocr.PyTessBaseAPI(
-            self._tessdata_path,
-            lang="osd",
-            oem=tesserocr.OEM.DEFAULT,
-            psm=tesserocr.PSM.OSD_ONLY,
-        )
-        pages_per_orientation = defaultdict(list)
-        doc_ix = -1
-        with osd_reader:
-            while (res := await queue.get()) is not None:
-                doc_ix += 1
-                doc, pdf_pages = res
-                if pdf_pages is None:
-                    for batch in chunk_docs([doc], batch_size):
-                        rng = _liteparse_range(batch.page_range)
-                        pages_per_orientation[(rng, None)].append(batch)
-                    continue
-                buffer = defaultdict(list)
-                try:
-                    pdf_doc = None
-                    pages = cast(list[PageComplexityStats], pdf_pages)
-                    for page in pages:
-                        # We don't use orientation for regular page, we reserve osd for
-                        # pages were OCR is required
-                        if not _should_detect_orientation(page):
-                            buffer[None].append(page)
-                            continue
-                        if pdf_doc is None:
-                            pdf_doc = pdfium.PdfDocument(doc.path)
-                        page_im = (
-                            pdf_doc[page.page_number - 1].render(scale=3.0).to_pil()
-                        )
-                        orientation = _detect_orientation(osd_reader, page_im)
-                        buffer[orientation].append(page)
-                finally:
-                    if pdf_doc is not None:
-                        pdf_doc.close()
-                for orientation, pages in buffer.items():
+        batches_per_orientation = defaultdict(list)
+        not_pdfs = [doc for doc, comps in complexities if comps is None]
+        for doc in not_pdfs:
+            for batch in chunk_docs([doc], batch_size):
+                rng = _liteparse_range(batch.page_range)
+                batches_per_orientation[(rng, None)].append(batch)
+        complexities = [
+            (doc, comps) for doc, comps in complexities if comps is not None
+        ]
+        logger.info("reading complex pages orientation...")
+        offset = len(not_pdfs)
+        with self._executor() as executor:
+            for doc, comps in complexities:
+                pages_by_orientation = await _doc_pages_by_orientation(
+                    doc, comps, executor, self._tessdata_path
+                )
+                for orientation, pages in pages_by_orientation.items():
                     for batch in batched(pages, batch_size, strict=False):
-                        batch = _pages_from_complexities(doc, doc_ix, *batch)  # noqa: PLW2901
+                        batch = _pages_from_complexities(doc, offset, *batch)  # noqa: PLW2901
                         rng = _liteparse_range_from_pages(*batch)
-                        pages_per_orientation[(rng, orientation)].append(batch)
+                        batches_per_orientation[(rng, orientation)].append(batch)
+                offset += 1
         # We yield pages per orientation only here to make sure to yield
         # (orientation, range) in the most regular way and avoid reload
-        for (_, orientation), batches in pages_per_orientation.items():
+        for (_, orientation), batches in batches_per_orientation.items():
             for batch in batches:
                 yield orientation, batch
 
@@ -220,6 +198,7 @@ class LiteParsePipeline(Pipeline):
                 )
                 raise NotImplementedError(fmt)
         result_queue = asyncio.Queue()
+        # Buffer partial conversion to filesystem as large docs are chunked into pieces
         with self._result_buffer() as buffer:
             publisher = self._parse_publisher(batches, liteparse_o_fmt, result_queue)
             consumer = self._parse_consumer(
@@ -235,14 +214,16 @@ class LiteParsePipeline(Pipeline):
         queue: asyncio.Queue,
     ) -> None:
         parser = None
-        # Buffer partial conversion to filesystem as large docs are chunked into pieces
+        parsers = []
+        close_parsers_tasks = []
         # Prevent more than n_cpu concurrent processing
-        sem = asyncio.Semaphore(self._config.n_cpus - 1)
+        sem = asyncio.Semaphore(max(1, self._config.n_cpus - 1))
         # Results may return in arbitrary order, we need to wait until parser is not
         # used any longer before
         tracker = UsageTracker()
         current_key = None
-        with _close_parser(parser):
+        publish_tasks = []
+        with _close_parsers(parsers):
             async with asyncio.TaskGroup() as tg:
                 for orientation, batch in batches:
                     # We avoid recreating the parser at each iteration since it creates
@@ -253,16 +234,19 @@ class LiteParsePipeline(Pipeline):
                     key = (page_range, orientation)
                     if key != current_key:
                         if parser is not None:
-                            await tracker.wait_until_free()
-                            parser.__exit__()
+                            close_t = tg.create_task(_await_and_close(tracker, parser))
+                            close_parsers_tasks.append(close_t)
                         logger.debug("loading parser for %s", key)
                         parser = self._make_parser(output_format, key, n_pages=n_pages)
+                        parsers.append(parser)
                         parser.__enter__().warm_up()
                         current_key = key
-                    await sem.acquire(), await tracker.acquire()
+                    await sem.acquire(), await tracker.acquire(parser)
                     task = self._convert_and_queue(parser, batch, queue, sem, tracker)
-                    tg.create_task(task)
-        queue.put_nowait(None)
+                    publish_tasks.append(tg.create_task(task))
+                await asyncio.gather(*publish_tasks)
+                queue.put_nowait(None)
+                await asyncio.gather(*close_parsers_tasks)
 
     async def _parse_consumer(
         self,
@@ -281,18 +265,6 @@ class LiteParsePipeline(Pipeline):
             if buffer.is_complete(doc_ix):
                 res = result_aggregator(doc, buffer.pop_complete(doc_ix), output_path)
                 yield res
-        logger.info("done consuming !")
-
-    async def _detect_complexity_and_queue(
-        self,
-        parser: "LiteParse",
-        doc: InputDoc,
-        queue: asyncio.Queue,
-        sem: asyncio.Semaphore,
-    ) -> None:
-        pages = await asyncio.to_thread(parser.is_complex, doc.path)
-        sem.release()
-        queue.put_nowait((doc, pages))
 
     async def _convert_and_queue(
         self,
@@ -302,8 +274,8 @@ class LiteParsePipeline(Pipeline):
         sem: asyncio.Semaphore,
         tracker: UsageTracker,
     ) -> None:
-        res = await asyncio.to_thread(parser.parse, pages[0].doc.path)
-        sem.release(), await tracker.release()
+        res = await parser.aparse(pages[0].doc.path)
+        sem.release(), await tracker.release(parser)
         res = LiteParsePageResult(
             pages=res.pages, errors=res.page_errors, images=res.images
         )
@@ -324,7 +296,7 @@ class LiteParsePipeline(Pipeline):
         target_pages, orientation = key
         if orientation is not None:
             orientation = [(p + 1, orientation) for p in range(n_pages)]
-        pool_size = self._config.n_cpus - 1
+        pool_size = max(1, self._config.n_cpus - 1)
         return LiteParse(
             ocr_enabled=True,
             extract_links=True,
@@ -348,10 +320,13 @@ class LiteParsePipeline(Pipeline):
             **self._config.config.model_dump(),
         )
 
-    def _make_complexity_parser(self) -> "LiteParse":
-        from liteparse.parser import LiteParse  # noqa: PLC0415
-
-        return LiteParse(ocr_enabled=False, pool_size=self._config.n_cpus - 1)
+    @contextmanager
+    def _executor(self) -> Generator[ProcessPoolExecutor]:
+        executor = ProcessPoolExecutor(
+            max_workers=self._config.n_cpus, mp_context=get_context("spawn")
+        )
+        with executor:
+            yield executor
 
     def _result_buffer(self) -> ResultBuffer:
 
@@ -362,6 +337,18 @@ class LiteParsePipeline(Pipeline):
             load_fn=_load_conversion_result,
         )
         return buffer
+
+
+async def _compute_batch_complexities(
+    pages: ProcessedPages,
+) -> tuple[ProcessedPages, list["PageComplexityStats"]]:
+    from liteparse.parser import LiteParse  # noqa: PLC0415
+
+    target_pages = _liteparse_range_from_pages(pages)
+    parser = LiteParse(ocr_enabled=False, target_pages=target_pages)
+    with parser:
+        comps = await asyncio.to_thread(parser.is_complex, pages.doc.path)
+    return pages, comps
 
 
 def aggregate_pages_md(
@@ -427,12 +414,12 @@ def _load_conversion_result(path: Path) -> "ParseResult":
 
 
 @contextmanager
-def _close_parser(parser: "LiteParse | None") -> Generator[None]:
+def _close_parsers(parsers: Iterable["LiteParse"]) -> Generator[None]:
     try:
         yield
     finally:
-        if parser is not None:
-            parser.close()
+        for p in parsers:
+            p.close()
 
 
 def _liteparse_range(rng: Range) -> str:
@@ -483,11 +470,93 @@ def _should_detect_orientation(page: "PageComplexityStats") -> bool:
     return False
 
 
-def _detect_orientation(osd_reader: "PyTessBaseAPI", page_im: "Image.Image") -> int:
-    osd_reader.SetImage(page_im)
-    orientation = osd_reader.DetectOrientationScript()["orient_deg"]
-    return _clipped_orientation(orientation)
+async def _doc_pages_by_orientation(
+    doc: InputDoc,
+    complexities: list["PageComplexityStats"],
+    executor: ProcessPoolExecutor,
+    tessdata_path: Path,
+) -> dict[int, list["PageComplexityStats"]]:
+    pages_by_orientation = defaultdict(list)
+    complexities = [(p, _should_detect_orientation(p)) for p in complexities]
+    for p, should_detect in complexities:
+        if not should_detect:
+            pages_by_orientation[None].append(p)
+    complexities = [p for p, should_detect in complexities if should_detect]
+    if not complexities:
+        return pages_by_orientation
+    futs = []
+    for c in complexities:
+        fut = executor.submit(_detect_page_orientation, doc.path, c, tessdata_path)
+        futs.append(fut)
+    for fut in futures.as_completed(futs):
+        orientation, p = fut.result()
+        pages_by_orientation[orientation].append(p)
+    return pages_by_orientation
+
+
+async def _detect_complexity(
+    parser: "LiteParse", doc: InputDoc
+) -> tuple[InputDoc, list["PageComplexityStats"] | None]:
+    if doc.ext != SupportedExt.PDF:
+        return doc, None
+    complexities = await asyncio.to_thread(parser.is_complex, doc.path)
+    return doc, complexities
+
+
+def _detect_page_orientation(
+    doc: Path, complexity: "PageComplexityStats", tessdata_path: Path
+) -> tuple[int, "PageComplexityStats"]:
+    pdf_doc = _PDF_DOC_CACHE.get(doc)
+    page = pdf_doc.get_page(complexity.page_number - 1)
+    page = page.render(scale=3)
+    osd_reader = _get_osd_reader(tessdata_path)
+    osd_reader.SetImage(page.to_pil())
+    orientation = osd_reader.DetectOrientationScript()
+    return _clipped_orientation(orientation["orient_deg"]), complexity
 
 
 def _clipped_orientation(angle: float) -> int:
     return min((abs(angle - o) % 360, o) for o in _CLIPPED_ORIENTATIONS)[1]
+
+
+async def _await_and_close(tracker: UsageTracker, parser: "LiteParse") -> None:
+    await tracker.wait_until_free(parser)
+    parser.close()
+
+
+def _get_osd_reader(tessdata_path: Path) -> "tesserocr.PyTessBaseAPI":
+    import tesserocr  # noqa: PLC0415
+
+    global _TESSERACT
+    if _TESSERACT is None:
+        osd_reader = tesserocr.PyTessBaseAPI(
+            str(tessdata_path),
+            lang="osd",
+            oem=tesserocr.OEM.DEFAULT,
+            psm=tesserocr.PSM.OSD_ONLY,
+        )
+        _TESSERACT = osd_reader
+    return _TESSERACT
+
+
+class _PDFDocCache:
+    def __init__(self):
+        self._path: Path | None = None
+        self._doc: pdfium.PdfDocument | None = None
+
+    def get(self, path: Path) -> "pdfium.PdfDocument":
+        import pypdfium2 as pdfium  # noqa: PLC0415
+
+        if path != self._path:
+            if self._doc is not None:
+                self._doc.close()
+            self._doc = pdfium.PdfDocument(path)
+            self._path = path
+        return self._doc
+
+
+# we have to use a global cache because pdfnium is not thread safe and not
+# pickleable
+_PDF_DOC_CACHE = _PDFDocCache()
+# tesseract is also not pickleable
+_TESSERACT: "tesserocr.PyTessBaseAPI | None" = None
