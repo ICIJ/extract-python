@@ -9,7 +9,6 @@ readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
   "extract-core~=0.12.1",
-  "icij-common~=0.8.2",
   "pympler~=1.1",
 ]
 
@@ -34,10 +33,10 @@ docling-gpu = [
 ]
 
 liteparse = [
-    "liteparse~=2.15",
-    "pillow~=11.0",
-    "pypdfium2~=4.0",
-    "tesserocr~=2.7",
+  "liteparse~=2.15",
+  "pillow~=11.0",
+  "pypdfium2~=4.0",
+  "tesserocr~=2.7",
 ]
 
 marker = [
@@ -53,8 +52,8 @@ mineru = [
 
 [tool.uv]
 environments = [
-    "sys_platform == 'darwin'",
-    "sys_platform == 'linux'",
+  "sys_platform == 'darwin'",
+  "sys_platform == 'linux'",
 ]
 conflicts = [
   [

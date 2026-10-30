@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
   "docling-slim~=2.134",
-  "icij-common~=0.8.2",
+  "icij-common>=0.8.2,<0.10",
   "pydantic~=2.13",
   "pydantic-extra-types[pycountry]~=2.11.1",
 ]
@@ -74,10 +74,10 @@ explicit = true
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-cpu"},
+  { index = "pytorch-cpu" },
 ]
 torchvision = [
-  { index = "pytorch-cpu"},
+  { index = "pytorch-cpu" },
 ]
 
 [dependency-groups]
