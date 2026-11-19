@@ -9,6 +9,7 @@ from docvortex.schema import DocumentMetadata, PageInfo, Producer
 from extract_core import (
     ConversionOutput,
     InputDoc,
+    InputPages,
     MinerUPipelineConfig,
     OutputFormat,
     Pipeline,
@@ -16,6 +17,7 @@ from extract_core import (
     Result,
     Status,
 )
+from extract_core.objects import Range
 from mineru import MiddleJson, MinerUParser, ParseResult
 from mineru.config import VlmConfig
 
@@ -35,7 +37,16 @@ class MinerUPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncIterable[Result]:
+        pages = (doc.to_all_pages(doc_ix) for doc_ix, doc in enumerate(docs))
+        async for res in self.extract_pages_content(pages, output_format, output_path):
+            yield res
 
+    async def extract_pages_content(
+        self,
+        pages: Iterable[InputPages],
+        output_format: OutputFormat,
+        output_path: Path,
+    ) -> AsyncIterable[Result]:
         with reset_env():
             os.environ["MINERU_DEVICE_MODE"] = self._device
             # TODO: exclude files which are not pdf and return an error
@@ -50,11 +61,22 @@ class MinerUPipeline(Pipeline):
                 image_analysis=config.image_analysis,
                 vlm_config=vlm_config,
             )
-            for doc in docs:
-                res = await parser.parse_async(doc.path)
+            for input_pages in pages:
+                page_rng = ""
+                if input_pages.page_range is not None:
+                    page_rng = _to_mineru_page_range(input_pages.page_range)
+                doc = input_pages.doc
+                path = doc.path
+                res = await parser.parse_async(path, page_range=page_rng)
                 yield _process_doc(
                     doc, res, output_format=output_format, output_path=output_path
                 )
+
+
+def _to_mineru_page_range(rng: Range) -> str:
+    # page range is a Python range, MinerU indexes from 1 and upper bound
+    # is inclusive
+    return f"{rng[0] + 1}-{rng[1]}"
 
 
 def _process_doc(

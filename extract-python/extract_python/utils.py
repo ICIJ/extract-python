@@ -17,16 +17,14 @@ from collections.abc import (
 )
 from contextlib import asynccontextmanager, contextmanager
 from copy import copy
-from dataclasses import dataclass
 from functools import wraps
 from itertools import tee
 from pathlib import Path, PurePath
 from tempfile import TemporaryDirectory
 from types import TracebackType
 from typing import Any, BinaryIO, Protocol, Self
-from warnings import deprecated
 
-from extract_core import Error, InputDoc, Pages, Result, Status
+from extract_core import Error, InputDoc, InputPages, Pages, Result, Status
 from pympler import asizeof
 
 logger = logging.getLogger(__name__)
@@ -104,37 +102,19 @@ def write_pages(pages: Iterable[str], page_sep: str, out: BinaryIO) -> Pages:
     return Pages.from_pages_bytes_sizes(pages_byte_sizes)
 
 
-Range = tuple[int, int]
-
-
-@dataclass(frozen=True)
-class ProcessedPages:
-    doc: InputDoc
-    doc_idx: int
-    page_range: Range | None = None
-
-    @property
-    def n_pages(self) -> int:
-        if self.page_range is None:
-            return self.doc.n_pages
-        return self.page_range[1] - self.page_range[0]
-
-    @property
-    @deprecated("Use n_pages instead")
-    def page_length(self) -> int:
-        return self.n_pages
-
-
 def chunk_docs(
-    docs: Iterable[InputDoc], n_pages: int, *, offset: int = 0
-) -> Iterable[ProcessedPages]:
+    docs: Iterable[InputDoc], page_batch_size: int, *, offset: int = 0
+) -> Iterable[InputPages]:
     for doc_i, doc in enumerate(docs):
         doc_idx = offset + doc_i
-        for i in range(0, doc.n_pages, n_pages):
+        if doc.n_pages >= page_batch_size:
+            yield doc.to_all_pages(doc_idx)
+            continue
+        for i in range(0, doc.n_pages, page_batch_size):
             start = i
-            end = min(start + n_pages, doc.n_pages)
+            end = min(start + page_batch_size, doc.n_pages)
             rng = (start, end)
-            pages = ProcessedPages(doc=doc, doc_idx=doc_idx, page_range=rng)
+            pages = InputPages(doc=doc, doc_idx=doc_idx, page_range=rng)
             yield pages
 
 
@@ -228,7 +208,7 @@ class ResultBuffer[R]:
             raise ValueError(msg)
         return self.__fs_buffer_path
 
-    def add(self, processed: ProcessedPages, result: R) -> bool:
+    def add(self, processed: InputPages, result: R) -> bool:
         size = asizeof.asizeof(result)
         if self._current_size + size > self._max_bytes:
             path = self._page_path(processed.doc_idx)
@@ -284,7 +264,7 @@ def batch_per_pages(
     *,
     max_page_batches: int,
     chunk_size: int = 1000,
-) -> Iterable[tuple[ProcessedPages]]:
+) -> Iterable[tuple[InputPages]]:
     # convert_all only accept to process docs on the exact same page_range
     #
     # We collect by chunk to avoid collecting too many inputs, input docs are
@@ -307,14 +287,14 @@ def batch_per_pages(
 
 def _bin_fill(
     docs: Iterable[InputDoc], max_pages: int, offset: int = 0
-) -> Generator[tuple[ProcessedPages], None, int]:
+) -> Generator[tuple[InputPages], None, int]:
     bins = defaultdict(deque)
     doc_idx = offset
     for doc in docs:
         if doc.n_pages > max_pages:
             msg = f"expected docs to have <= {max_pages} pages"
             raise ValueError(msg)
-        pages = ProcessedPages(doc=doc, doc_idx=doc_idx)
+        pages = InputPages(doc=doc, doc_idx=doc_idx)
         doc_idx += 1
         available_space = (s for s in sorted(bins.keys()) if doc.n_pages <= s)
         available_space = next(available_space, max_pages)
@@ -334,7 +314,7 @@ def _bin_fill(
 
 def _by_page_ranges(
     docs: Iterable[InputDoc], max_pages: int, offset: int = 0
-) -> Generator[tuple[ProcessedPages], None, int]:
+) -> Generator[tuple[InputPages], None, int]:
     by_range = defaultdict(list)
     doc_idx = offset
     for doc in docs:
@@ -348,7 +328,7 @@ def _by_page_ranges(
             rng = (start, end)
             rng_size = end - start
             alone_in_batch = rng_size == max_pages
-            pages = ProcessedPages(doc=doc, doc_idx=doc_idx, page_range=rng)
+            pages = InputPages(doc=doc, doc_idx=doc_idx, page_range=rng)
             if alone_in_batch:
                 yield (pages,)
                 continue

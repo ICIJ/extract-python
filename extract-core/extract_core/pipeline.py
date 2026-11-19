@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Self
 
 from icij_common.registrable import RegistrableFromConfig
+from objects import InputPages
 
 from extract_core import BasePipelineConfig
 
@@ -18,6 +19,14 @@ class Pipeline[C: BasePipelineConfig](RegistrableFromConfig, ABC):
     @abstractmethod
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
+    ) -> AsyncIterable[Result]: ...
+
+    @abstractmethod
+    async def extract_pages_content(
+        self,
+        pages: Iterable[InputPages],
+        output_format: OutputFormat,
+        output_path: Path,
     ) -> AsyncIterable[Result]: ...
 
     @classmethod

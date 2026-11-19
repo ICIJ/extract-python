@@ -894,7 +894,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "docling-slim", specifier = "~=2.134" },
-    { name = "icij-common", specifier = "~=0.8.2" },
+    { name = "icij-common", specifier = ">=0.8.2,<0.10" },
     { name = "pydantic", specifier = "~=2.13" },
     { name = "pydantic-extra-types", extras = ["pycountry"], specifier = "~=2.11.1" },
     { name = "typer", marker = "extra == 'cli'", specifier = "~=0.21.2" },
@@ -920,7 +920,6 @@ name = "extract-python"
 source = { editable = "." }
 dependencies = [
     { name = "extract-core", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or (extra == 'extra-14-extract-python-liteparse' and extra == 'extra-14-extract-python-mineru') or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
-    { name = "icij-common", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or (extra == 'extra-14-extract-python-liteparse' and extra == 'extra-14-extract-python-mineru') or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
     { name = "pympler", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or (extra == 'extra-14-extract-python-liteparse' and extra == 'extra-14-extract-python-mineru') or (extra == 'extra-14-extract-python-marker' and extra == 'extra-14-extract-python-mineru')" },
 ]
 
@@ -974,7 +973,6 @@ requires-dist = [
     { name = "docling-slim", extras = ["feat-ocr-nemotron", "models-onnxruntime", "models-vlm-inline"], marker = "extra == 'docling-gpu'", specifier = "~=2.127" },
     { name = "extract-core", editable = "../extract-core" },
     { name = "html2image", marker = "extra == 'benches'", specifier = "~=2.0.7" },
-    { name = "icij-common", specifier = "~=0.8.2" },
     { name = "liteparse", marker = "extra == 'liteparse'", specifier = "~=2.15" },
     { name = "markdown2", marker = "extra == 'benches'", specifier = ">=2.5.4" },
     { name = "marker-pdf", marker = "extra == 'marker'", specifier = "~=1.10" },

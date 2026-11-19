@@ -524,7 +524,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "docling-slim", specifier = "~=2.134" },
-    { name = "icij-common", specifier = "~=0.8.2" },
+    { name = "icij-common", specifier = ">=0.8.2,<0.10" },
     { name = "pydantic", specifier = "~=2.13" },
     { name = "pydantic-extra-types", extras = ["pycountry"], specifier = "~=2.11.1" },
     { name = "typer", marker = "extra == 'cli'", specifier = "~=0.21.2" },
