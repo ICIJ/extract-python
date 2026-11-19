@@ -28,10 +28,12 @@ from extract_core import (
     DoclingPipelineConfig,
     Error,
     InputDoc,
+    InputPages,
     MarkdownDoc,
     OutputFormat,
     Pipeline,
     PipelineType,
+    Range,
     Result,
     Status,
 )
@@ -41,7 +43,6 @@ from pydantic_core.core_schema import SerializerFunctionWrapHandler
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import (
-    Range,
     ResultBuffer,
     batch_per_pages,
     chdir,
@@ -77,24 +78,36 @@ class DoclingPipeline(Pipeline):
     ) -> AsyncIterable[Result]:
         settings = self._config.settings
         logger.info("starting extraction with settings: %s", settings)
-        with self._scoped_settings, self._result_buffer as buffer:
+        with self._scoped_settings:
             max_page_batches = settings.perf.max_page_batches
             page_batch_size = settings.perf.page_batch_size
-            batches = batch_per_pages(
+            pages = batch_per_pages(
                 docs, page_batch_size, max_page_batches=max_page_batches
             )
-            for batch in batches:
-                page_range = list({pages.page_range for pages in batch})
+            async for res in self.extract_pages_content(
+                pages, output_format, output_path
+            ):
+                yield res
+
+    async def extract_pages_content(
+        self,
+        pages: Iterable[InputPages],
+        output_format: OutputFormat,
+        output_path: Path,
+    ) -> AsyncIterable[Result]:
+        with self._result_buffer as buffer:
+            for input_pages in pages:
+                page_range = list({pages.page_range for pages in input_pages})
                 if len(page_range) > 1:
                     msg = "convert_all only accept 1 page range for all docs"
                     raise ValueError(msg)
                 page_range = page_range[0]
                 page_range = _docling_range(page_range)
-                docling_docs = (pages.doc.to_docling() for pages in batch)
+                docling_docs = (pages.doc.to_docling() for pages in input_pages)
                 outputs = self._converter.convert_all(
                     docling_docs, raises_on_error=False, page_range=page_range
                 )
-                processed = iter(batch)
+                processed = iter(input_pages)
                 sentinel = object()
                 while True:
                     res = await asyncio.to_thread(next, outputs, sentinel)

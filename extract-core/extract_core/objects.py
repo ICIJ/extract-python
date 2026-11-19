@@ -21,6 +21,9 @@ from pydantic import Field
 logger = logging.getLogger(__name__)
 base_config = merge_configs(icij_config(), no_enum_values_config())
 
+Range = tuple[int, int]
+Ranges = list[Range]
+
 
 class BaseModel(_BaseModel):
     model_config = base_config
@@ -241,6 +244,9 @@ class InputDoc(BaseModel):
         ext = SupportedExt(path.suffix.lower())
         return cls(path=path, ext=ext, n_pages=n_pages)
 
+    def to_all_pages(self, doc_idx: int) -> "InputPages":
+        return InputPages(doc=self, doc_idx=doc_idx, page_range=None)
+
     def to_docling(self):  # noqa: ANN201
         from docling_core.types.io import DocumentStream  # noqa: PLC0415
 
@@ -249,9 +255,6 @@ class InputDoc(BaseModel):
                 name=str(self.path), stream=BytesIO(self.path.read_bytes())
             )
         return self.path
-
-
-Ranges = list[tuple[int, int]]
 
 
 class Pages(BaseModel):
@@ -309,3 +312,17 @@ class Result(_BaseResult):
 
 class ExtractionResponse(BaseModel):
     results: list[ResponseResult]
+
+
+class InputPages(BaseModel):
+    # Contiguous chunk of pages from a doc
+    doc: InputDoc
+    doc_idx: int
+    page_range: Range | None = None  # None page range -> full document
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def n_pages(self) -> int:
+        if self.page_range is None:
+            return self.doc.n_pages
+        return self.page_range[1] - self.page_range[0]
