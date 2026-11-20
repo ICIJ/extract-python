@@ -17,20 +17,21 @@ from extract_core import (
     ConversionOutput,
     Error,
     InputDoc,
+    InputPages,
     LiteParsePipelineConfig,
     OutputFormat,
     Pipeline,
     PipelineType,
+    Range,
     Result,
     Status,
     SupportedExt,
 )
+from icij_common.pydantic_utils import safe_copy
 from pydantic import TypeAdapter
 
 from .constants import ARTIFACTS, DEFAULT_MD_PAGE_SEP
 from .utils import (
-    ProcessedPages,
-    Range,
     ResultBuffer,
     UsageTracker,
     _run_with_concurrency,
@@ -39,6 +40,8 @@ from .utils import (
     publish_and_consume,
     write_pages,
 )
+
+LITEPARSE_RANGE = "liteparse_range"
 
 logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
@@ -55,8 +58,8 @@ if TYPE_CHECKING:
 
 _LITEPARSE_CONVERSION_ERRORS = tuple()
 
-
-OrientedBatch = tuple[int | None, tuple[ProcessedPages]]
+Orientation = int | None
+OrientedBatch = tuple[tuple[Range, Orientation] | None, tuple[InputPages, ...]]
 LiteParseOutputFormat = Literal["text", "json", "markdown"]
 
 
@@ -76,7 +79,7 @@ class LiteParsePageResult:
         dict[int, tuple["ParsedPage", list["ExtractedImage"], list["PageError"]]] | None
     ) = None
 
-    def filter(self, page: ProcessedPages) -> Self:
+    def filter(self, page: InputPages) -> Self:
         if self._by_ix is None:
             self._by_ix = self._results_by_index()
         pages, images, errors = [], [], []
@@ -119,72 +122,16 @@ class LiteParsePipeline(Pipeline):
         self._tessdata_path = Path(tessdata_path)
         if self._config.detect_page_orientation:
             logger.info("reading docs page orientation detection...")
-            batches = await self._batch_per_orientation(docs)
+            pages = await self._group_per_page_range_and_orientation(docs)
         else:
-            batches = chunk_docs(docs, self._config.page_batch_size)
-            batches = ((None, (c,)) for c in batches)
+            pages = chunk_docs(docs, self._config.page_batch_size)
         logger.info("parsing pages...")
-        async for res in self._parse(batches, output_format, output_path):
+        async for res in self.extract_pages_content(pages, output_format, output_path):
             yield res
 
-    async def _batch_per_orientation(
-        self, docs: Iterable[InputDoc]
-    ) -> list[OrientedBatch]:
-        logger.info("computing page complexities...")
-        complexities = await self._compute_complexities(docs)
-        batches = [b async for b in self._batch_with_orientation(complexities)]
-        return batches
-
-    async def _compute_complexities(
-        self, docs: Iterable[InputDoc]
-    ) -> list[tuple[InputDoc, list["PageComplexityStats"]]]:
-        docs = list(docs)
-        batches = (pages for pages in chunk_docs(docs, self._config.page_batch_size))
-        aws = (_compute_batch_complexities(batch) for batch in batches)
-        batches = defaultdict(list)
-        async for pages, res in _run_with_concurrency(aws, self._config.n_cpus):
-            batches[pages.doc_idx].extend(res)
-        batches = [
-            (docs[doc_idx], sorted(comps, key=lambda c: c.page_number))
-            for doc_idx, comps in batches.items()
-        ]
-        return batches
-
-    async def _batch_with_orientation(
-        self, complexities: list[tuple[InputDoc, list["PageComplexityStats"]]]
-    ) -> AsyncIterable[OrientedBatch]:
-        batch_size = self._config.page_batch_size
-        batches_per_orientation = defaultdict(list)
-        not_pdfs = [doc for doc, comps in complexities if comps is None]
-        for doc in not_pdfs:
-            for batch in chunk_docs([doc], batch_size):
-                rng = _liteparse_range(batch.page_range)
-                batches_per_orientation[(rng, None)].append(batch)
-        complexities = [
-            (doc, comps) for doc, comps in complexities if comps is not None
-        ]
-        logger.info("reading complex pages orientation...")
-        offset = len(not_pdfs)
-        with self._executor() as executor:
-            for doc, comps in complexities:
-                pages_by_orientation = await _doc_pages_by_orientation(
-                    doc, comps, executor, self._tessdata_path
-                )
-                for orientation, pages in pages_by_orientation.items():
-                    for batch in batched(pages, batch_size, strict=False):
-                        batch = _pages_from_complexities(doc, offset, *batch)  # noqa: PLW2901
-                        rng = _liteparse_range_from_pages(*batch)
-                        batches_per_orientation[(rng, orientation)].append(batch)
-                offset += 1
-        # We yield pages per orientation only here to make sure to yield
-        # (orientation, range) in the most regular way and avoid reload
-        for (_, orientation), batches in batches_per_orientation.items():
-            for batch in batches:
-                yield orientation, batch
-
-    async def _parse(
+    async def extract_pages_content(
         self,
-        batches: Iterable[OrientedBatch],
+        pages: Iterable[InputPages],
         output_format: OutputFormat,
         output_path: Path,
     ) -> AsyncIterable[Result]:
@@ -200,16 +147,77 @@ class LiteParsePipeline(Pipeline):
         result_queue = asyncio.Queue()
         # Buffer partial conversion to filesystem as large docs are chunked into pieces
         with self._result_buffer() as buffer:
-            publisher = self._parse_publisher(batches, liteparse_o_fmt, result_queue)
+            publisher = self._parse_publisher(pages, liteparse_o_fmt, result_queue)
             consumer = self._parse_consumer(
                 result_queue, buffer, postprocess_fn, output_path
             )
             async for res in publish_and_consume(publisher, consumer=consumer):
                 yield res
 
+    async def _group_per_page_range_and_orientation(
+        self, docs: Iterable[InputDoc]
+    ) -> list[InputPages]:
+        logger.info("computing page complexities...")
+        complexities = await self.compute_complexities(docs)
+        batches = [b async for b in self._groups_from_complexities(complexities)]
+        return batches
+
+    async def compute_complexities(
+        self, docs: Iterable[InputDoc]
+    ) -> list[tuple[InputDoc, list["PageComplexityStats"]]]:
+        docs = list(docs)
+        batches = (pages for pages in chunk_docs(docs, self._config.page_batch_size))
+        aws = (_compute_batch_complexities(batch) for batch in batches)
+        batches = defaultdict(list)
+        async for pages, res in _run_with_concurrency(aws, self._config.n_cpus):
+            batches[pages.doc_idx].extend(res)
+        batches = [
+            (docs[doc_idx], sorted(comps, key=lambda c: c.page_number))
+            for doc_idx, comps in batches.items()
+        ]
+        return batches
+
+    async def _groups_from_complexities(
+        self, complexities: list[tuple[InputDoc, list["PageComplexityStats"]]]
+    ) -> AsyncIterable[InputPages]:
+        batch_size = self._config.page_batch_size
+        groups = defaultdict(list)
+        not_pdfs = (doc for doc, comps in complexities if comps is None)
+        for doc in not_pdfs:
+            for batch in chunk_docs([doc], batch_size):
+                rng, orientation = None, None
+                if batch.page_range is not None:
+                    rng = _liteparse_range(batch.page_range)
+                update = {"liteparse_range": rng, "orientation": orientation}
+                update = {"metadata": update}
+                batch = tuple(safe_copy(b, update) for b in batch)  # noqa: PLW2901
+                groups[(rng, orientation)].extend(batch)
+        complexities = [
+            (doc, comps) for doc, comps in complexities if comps is not None
+        ]
+        logger.info("reading complex pages orientation...")
+        offset = sum(len(v) for v in groups.values())
+        with self._executor() as executor:
+            for doc, comps in complexities:
+                pages_by_orientation = await _doc_pages_by_orientation(
+                    doc, comps, executor, self._tessdata_path
+                )
+                for orientation, pages in pages_by_orientation.items():
+                    for batch in batched(pages, batch_size, strict=False):
+                        batch = _pages_from_complexities(doc, offset, *batch)  # noqa: PLW2901
+                        rng = _liteparse_range_from_pages(*batch)
+                        update = {"liteparse_range": rng, "orientation": orientation}
+                        update = {"metadata": update}
+                        batch = tuple(safe_copy(b, update) for b in batch)  # noqa: PLW2901
+                        groups[(rng, orientation)].extend(batch)
+                offset += 1
+        for group in groups.values():
+            for input_pages in sorted(group, key=lambda p: p.n_pages):
+                yield input_pages
+
     async def _parse_publisher(
         self,
-        batches: Iterable[OrientedBatch],
+        pages: Iterable[InputPages],
         output_format: LiteParseOutputFormat,
         queue: asyncio.Queue,
     ) -> None:
@@ -225,24 +233,29 @@ class LiteParsePipeline(Pipeline):
         publish_tasks = []
         with _close_parsers(parsers):
             async with asyncio.TaskGroup() as tg:
-                for orientation, batch in batches:
+                for input_pages in pages:
+                    page_range = input_pages.metadata.get(LITEPARSE_RANGE)
+                    orientation = input_pages.metadata.get("orientation")
                     # We avoid recreating the parser at each iteration since it creates
-                    # a worker pool, instead process in (orientation, page range) order
-                    # and cache the parser
-                    page_range = _liteparse_range_from_pages(*batch)
-                    n_pages = sum(p.n_pages for p in batch)
-                    key = (page_range, orientation)
-                    if key != current_key:
+                    # a worker pool
+                    parser_key = (
+                        (page_range, orientation, None)
+                        if orientation is None
+                        else (page_range, orientation, input_pages.n_pages)
+                    )
+                    if parser_key != current_key:
                         if parser is not None:
                             close_t = tg.create_task(_await_and_close(tracker, parser))
                             close_parsers_tasks.append(close_t)
-                        logger.debug("loading parser for %s", key)
-                        parser = self._make_parser(output_format, key, n_pages=n_pages)
+                        logger.debug("loading parser for %s", parser_key)
+                        parser = self._make_parser(output_format, *parser_key)
                         parsers.append(parser)
                         parser.__enter__().warm_up()
-                        current_key = key
+                        current_key = parser_key
                     await sem.acquire(), await tracker.acquire(parser)
-                    task = self._convert_and_queue(parser, batch, queue, sem, tracker)
+                    task = self._convert_and_queue(
+                        parser, input_pages, queue, sem, tracker
+                    )
                     publish_tasks.append(tg.create_task(task))
                 await asyncio.gather(*publish_tasks)
                 queue.put_nowait(None)
@@ -256,12 +269,11 @@ class LiteParsePipeline(Pipeline):
         output_path: Path,
     ) -> AsyncIterable[Result]:
         while (queued := await queue.get()) is not None:
-            pages, res = queued
-            for p in pages:
-                filtered = res.filter(p)
-                buffer.add(p, filtered)
-            doc_ix = pages[0].doc_idx
-            doc = pages[0].doc
+            input_pages, res = queued
+            filtered = res.filter(input_pages)
+            buffer.add(input_pages, filtered)
+            doc_ix = input_pages.doc_idx
+            doc = input_pages.doc
             if buffer.is_complete(doc_ix):
                 res = result_aggregator(doc, buffer.pop_complete(doc_ix), output_path)
                 yield res
@@ -269,12 +281,12 @@ class LiteParsePipeline(Pipeline):
     async def _convert_and_queue(
         self,
         parser: "LiteParse",
-        pages: tuple[ProcessedPages],
+        pages: InputPages,
         queue: asyncio.Queue,
         sem: asyncio.Semaphore,
         tracker: UsageTracker,
     ) -> None:
-        res = await parser.aparse(pages[0].doc.path)
+        res = await parser.aparse(pages.doc.path)
         sem.release(), await tracker.release(parser)
         res = LiteParsePageResult(
             pages=res.pages, errors=res.page_errors, images=res.images
@@ -284,8 +296,9 @@ class LiteParsePipeline(Pipeline):
     def _make_parser(
         self,
         output_format: LiteParseOutputFormat,
-        key: tuple[str, int | None],
-        n_pages: int,
+        target_pages: str,
+        orientation: int | None,
+        n_pages: int | None,
     ) -> "LiteParse":
         from liteparse.parser import LiteParse  # noqa: PLC0415
 
@@ -293,7 +306,6 @@ class LiteParsePipeline(Pipeline):
         parse_timeout = self._config.per_page_timeout
         if parse_timeout is not None:
             parse_timeout = parse_timeout * page_batch_size
-        target_pages, orientation = key
         if orientation is not None:
             orientation = [(p + 1, orientation) for p in range(n_pages)]
         pool_size = max(1, self._config.n_cpus - 1)
@@ -340,8 +352,8 @@ class LiteParsePipeline(Pipeline):
 
 
 async def _compute_batch_complexities(
-    pages: ProcessedPages,
-) -> tuple[ProcessedPages, list["PageComplexityStats"]]:
+    pages: InputPages,
+) -> tuple[InputPages, list["PageComplexityStats"]]:
     from liteparse.parser import LiteParse  # noqa: PLC0415
 
     target_pages = _liteparse_range_from_pages(pages)
@@ -428,15 +440,18 @@ def _liteparse_range(rng: Range) -> str:
     return f"{rng[0] + 1}-{rng[1]}"
 
 
-def _liteparse_range_from_pages(*pages: ProcessedPages) -> str:
-    pages = sorted(pages, key=lambda p: p.page_range[0])
-    ranges = (_liteparse_range(p.page_range) for p in pages)
+def _liteparse_range_from_pages(*pages: InputPages) -> str:
+    pages = sorted(pages, key=lambda p: p.page_range or -1)
+    ranges = (
+        p.page_range if p.page_range is not None else (0, p.doc.n_pages) for p in pages
+    )
+    ranges = (_liteparse_range(r) for r in ranges)
     return ",".join(ranges)
 
 
 def _pages_from_complexities(
     doc: InputDoc, doc_ix: int, *complexities: "PageComplexityStats"
-) -> tuple[ProcessedPages]:
+) -> tuple[InputPages]:
     complexities = sorted(complexities, key=lambda p: p.page_number)
     pages = []
     start, end = None, None
@@ -445,11 +460,11 @@ def _pages_from_complexities(
             start = p.page_number - 1
             end = start + 1
         if p.page_number != end:
-            processed = ProcessedPages(doc=doc, doc_idx=doc_ix, page_range=(start, end))
+            processed = InputPages(doc=doc, doc_idx=doc_ix, page_range=(start, end))
             pages.append(processed)
             start = p.page_number - 1
         end = p.page_number
-    processed = ProcessedPages(doc=doc, doc_idx=doc_ix, page_range=(start, end))
+    processed = InputPages(doc=doc, doc_idx=doc_ix, page_range=(start, end))
     pages.append(processed)
     return pages
 

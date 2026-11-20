@@ -7,7 +7,7 @@ from icij_common.registrable import RegistrableFromConfig
 
 from extract_core import BasePipelineConfig
 
-from .objects import InputDoc, OutputFormat, Result
+from .objects import InputDoc, InputPages, OutputFormat, Result
 
 
 class Pipeline[C: BasePipelineConfig](RegistrableFromConfig, ABC):
@@ -18,6 +18,14 @@ class Pipeline[C: BasePipelineConfig](RegistrableFromConfig, ABC):
     @abstractmethod
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
+    ) -> AsyncIterable[Result]: ...
+
+    @abstractmethod
+    async def extract_pages_content(
+        self,
+        pages: Iterable[InputPages],
+        output_format: OutputFormat,
+        output_path: Path,
     ) -> AsyncIterable[Result]: ...
 
     @classmethod

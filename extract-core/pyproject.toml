@@ -130,3 +130,6 @@ artifacts = [
 fallback-version = "0.0.0"
 pattern-prefix = "extract-core-"
 pattern = "default-unprefixed"
+
+[tool.ruff]
+extend = "../qa/ruff.toml"

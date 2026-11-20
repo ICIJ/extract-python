@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING
 
 from extract_core import (
     InputDoc,
+    InputPages,
     MarkdownDoc,
     OutputFormat,
     Pipeline,
     PipelineType,
+    Range,
     Result,
     Status,
 )
@@ -31,22 +33,44 @@ class MarkerPipeline(Pipeline):
     async def extract_content(
         self, docs: Iterable[InputDoc], output_format: OutputFormat, output_path: Path
     ) -> AsyncIterable[Result]:
+        pages = (doc.to_all_pages(doc_ix) for doc_ix, doc in enumerate(docs))
+        async for res in self.extract_pages_content(pages, output_format, output_path):
+            yield res
+
+    async def extract_pages_content(
+        self,
+        pages: Iterable[InputPages],
+        output_format: OutputFormat,
+        output_path: Path,
+    ) -> AsyncIterable[Result]:
         from marker.config.parser import ConfigParser  # noqa: PLC0415
         from marker.converters.pdf import PdfConverter  # noqa: PLC0415
         from marker.models import create_model_dict  # noqa: PLC0415
 
         config = deepcopy(self._config.config)
         config["output_format"] = output_format.to_marker()
-        config_parser = ConfigParser(config)
-        renderer = config_parser.get_renderer()
-        converter = PdfConverter(
-            config=config_parser.generate_config_dict(),
-            artifact_dict=create_model_dict(device=self._device),
-            processor_list=config_parser.get_processors(),
-            renderer=renderer,
-        )
-        for doc in docs:
-            yield await _process_doc(doc, converter, output_format, output_path)
+        current_rng = object()
+        for input_pages in pages:
+            if input_pages.page_range != current_rng:
+                current_rng = input_pages.page_range
+                if current_rng is not None:
+                    config["page_range"] = _to_marker_page_range(current_rng)
+                config_parser = ConfigParser(config)
+                renderer = config_parser.get_renderer()
+                converter = PdfConverter(
+                    config=config_parser.generate_config_dict(),
+                    artifact_dict=create_model_dict(device=self._device),
+                    processor_list=config_parser.get_processors(),
+                    renderer=renderer,
+                )
+            res = await _process_doc(
+                input_pages.doc, converter, output_format, output_path
+            )
+            yield res
+
+
+def _to_marker_page_range(rng: Range) -> str:
+    return f"{rng[0]}-{rng[1]}"
 
 
 @report_recoverable_errors(_MARKER_CONVERSION_ERRORS)

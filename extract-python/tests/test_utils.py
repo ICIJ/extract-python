@@ -6,14 +6,10 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from extract_core import InputDoc, SupportedExt
-from extract_python.utils import (
-    ProcessedPages,
-    ResultBuffer,
-    batch_per_pages,
-    write_pages,
-)
+from extract_core import InputDoc, InputPages, SupportedExt
 from pympler import asizeof
+
+from extract_python.utils import ResultBuffer, batch_per_pages, write_pages
 
 
 def _read_page(doc: BytesIO, start: int, *, end: int) -> str:
@@ -131,12 +127,12 @@ def test_result_buffer_in_memory() -> None:
         max_size_bytes=max_size_bytes, save_fn=save_fn, load_fn=load_fn
     )
     doc_idx = 0
-    first = ProcessedPages(
+    first = InputPages(
         doc=InputDoc(ext=SupportedExt.PDF, path=Path(""), n_pages=2),
         doc_idx=doc_idx,
         page_range=(0, 1),
     )
-    last = ProcessedPages(
+    last = InputPages(
         doc=InputDoc(ext=SupportedExt.PDF, path=Path(""), n_pages=2),
         doc_idx=doc_idx,
         page_range=(1, 2),
@@ -164,12 +160,12 @@ def test_result_buffer_offload_on_fs() -> None:
         max_size_bytes=max_size_bytes, save_fn=save_fn, load_fn=load_fn
     )
     doc_idx = 0
-    first = ProcessedPages(
+    first = InputPages(
         doc=InputDoc(ext=SupportedExt.PDF, path=Path(""), n_pages=2),
         doc_idx=doc_idx,
         page_range=(0, 1),
     )
-    last = ProcessedPages(
+    last = InputPages(
         doc=InputDoc(ext=SupportedExt.PDF, path=Path(""), n_pages=2),
         doc_idx=doc_idx,
         page_range=(1, 2),
@@ -205,7 +201,7 @@ def test_result_buffer_offload_on_fs_should_preserve_root(tmpdir: Path) -> None:
 def test_result_buffer_raise_for_inconsistent_state() -> None:
     # Given
     max_size_bytes = 0
-    pages = ProcessedPages(
+    pages = InputPages(
         doc=InputDoc(ext=SupportedExt.PDF, path=Path(""), n_pages=2),
         doc_idx=0,
         page_range=(0, 1),
@@ -236,19 +232,19 @@ def test_batch_per_pages_should_yield_short_docs_first() -> None:
     # Then
     expected_batches = [
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("1"), n_pages=6), doc_idx=0
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("0"), n_pages=8),
                 doc_idx=1,
                 page_range=(0, 6),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("0"), n_pages=8),
                 doc_idx=1,
                 page_range=(6, 8),
@@ -276,24 +272,24 @@ def test_batch_per_pages_should_bin_short_docs() -> None:
     # Then
     expected_batches = [
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("1"), n_pages=4), doc_idx=1
             ),
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("3"), n_pages=2), doc_idx=3
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("2"), n_pages=5), doc_idx=2
             ),
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("4"), n_pages=1),
                 doc_idx=4,
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("0"), n_pages=3), doc_idx=0
             ),
         ),
@@ -320,80 +316,80 @@ def test_batch_per_pages_should_group_long_docs_by_page_ranges() -> None:
     # Then
     expected_batches = [
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("0"), n_pages=12),
                 doc_idx=0,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("1"), n_pages=11),
                 doc_idx=1,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("2"), n_pages=12),
                 doc_idx=2,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("0"), n_pages=12),
                 doc_idx=0,
                 page_range=(8, 12),
             ),
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("2"), n_pages=12),
                 doc_idx=2,
                 page_range=(8, 12),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("3"), n_pages=11),
                 doc_idx=3,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("1"), n_pages=11),
                 doc_idx=1,
                 page_range=(8, 11),
             ),
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("3"), n_pages=11),
                 doc_idx=3,
                 page_range=(8, 11),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("4"), n_pages=9),
                 doc_idx=4,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("5"), n_pages=10),
                 doc_idx=5,
                 page_range=(0, 8),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("4"), n_pages=9),
                 doc_idx=4,
                 page_range=(8, 9),
             ),
         ),
         (
-            ProcessedPages(
+            InputPages(
                 doc=InputDoc(ext=SupportedExt.PDF, path=Path("5"), n_pages=10),
                 doc_idx=5,
                 page_range=(8, 10),

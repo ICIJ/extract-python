@@ -134,7 +134,11 @@ packages = ["extract_python"]
 exclude = [
   "tests",
 ]
+
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0"
 pattern-prefix = "extract-python-"
 pattern = "default-unprefixed"
+
+[tool.ruff]
+extend = "../qa/ruff.toml"

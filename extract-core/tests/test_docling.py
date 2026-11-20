@@ -1,6 +1,7 @@
 from docling.datamodel.accelerator_options import AcceleratorDevice
 from docling.datamodel.backend_options import PdfBackendOptions
 from docling.datamodel.base_models import InputFormat
+
 from extract_core import Device, DoclingFormatOption, DoclingPipelineConfig
 
 

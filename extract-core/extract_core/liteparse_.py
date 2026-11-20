@@ -1,10 +1,11 @@
 import os
 from copy import copy
 from datetime import timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import ClassVar, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .configs import BasePipelineConfig, PipelineType, ResultBufferConfig
 from .objects import BaseModel, Device, SupportedExt
@@ -81,4 +82,48 @@ class LiteParsePipelineConfig(BasePipelineConfig):
         return copy(_SUPPORTED_EXTS)
 
     def to_device(self) -> Self:
+        return self
+
+
+class LiteParseOCRReason(StrEnum):
+    SCANNED = "scanned"
+    NO_TEXT = "no-text"
+    SPARSE_TEXT = "sparse-text"
+    EMBEDDED_IMAGES = "embedded-images"
+    GARBLED = "garbled"
+    VECTOR_TEXT = "vector-text"
+    ANNOTATION_TEXT = "annotation-text"
+
+
+class LiteParseLayoutReason(StrEnum):
+    MULTI_COLUMN = "multi-column"
+    TABLE_LIKELY = "table-likely"
+    DENSE_GRAPHICS = "dense-graphics"
+
+
+def _all_ocr_reasons() -> set[LiteParseOCRReason]:
+    return set(LiteParseOCRReason)
+
+
+class LiteParseRouterConfig(BaseModel):
+    needs_ocr_is_advanced: bool = True
+    complex_layout_is_advanced: bool = True
+    advanced_ocr_reasons: set[LiteParseOCRReason] | None = None
+    advanced_layout_reasons: set[LiteParseLayoutReason] | None = None
+
+    @model_validator(mode="after")
+    def reasons_are_consistent_with_flags(self) -> Self:
+        if self.needs_ocr_is_advanced and self.advanced_ocr_reasons is not None:
+            msg = (
+                "advanced_ocr_reasons can be supplied when needs_ocr_is_advanced"
+                "is set to True. When needs_ocr_is_advanced ocr reasons are ignored."
+            )
+            raise ValueError(msg)
+        if self.complex_layout_is_advanced and self.advanced_layout_reasons is not None:
+            msg = (
+                "complex_layout_is_advanced can be supplied when "
+                "advanced_layout_reasons is set to True."
+                " When advanced_layout_reasons ocr reasons are ignored."
+            )
+            raise ValueError(msg)
         return self
