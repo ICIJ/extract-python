@@ -22,15 +22,28 @@ except ModuleNotFoundError:
     MinerUPipeline = None
 
 try:
+    from .hybrid_liteparse_ import (
+        HybridLiteParsePipeline,
+        LiteParseLayoutReason,
+        LiteParseOCRReason,
+    )
     from .liteparse_ import LiteParsePipeline
 except ModuleNotFoundError:
     logger.warning("liteparse is not available, might be optional...")
+    HybridLiteParsePipeline, LiteParseLayoutReason, LiteParseOCRReason = (
+        None,
+        None,
+        None,
+    )
     LiteParsePipeline = None
 
 __all__ = [
     "DoclingPipeline",
     "DOCLING_DEFAULT_ARTIFACTS_PATH",
+    "HybridLiteParsePipeline",
+    "LiteParseLayoutReason",
+    "LiteParseOCRReason",
+    "LiteParsePipeline",
     "MarkerPipeline",
     "MinerUPipeline",
-    "LiteParsePipeline",
 ]

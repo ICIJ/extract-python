@@ -6,25 +6,29 @@ on:
   pull_request:
     paths:
       - 'extract-core/**'
+env:
+  PYTHON_VERSION: 3.13
+  ASTRAL_VERSION: 0.11.6
 
 jobs:
   lint-core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/ruff-action@v4.0.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          args: "--version" # skips test by displaying the version
+          version: ${{ env.ASTRAL_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          working-directory: extract-core
       - name: Check formatting
-        run: ruff format --config qa/ruff.toml --check extract-core
+        run: cd extract-core && uv run ruff format --check
       - name: Lint test
-        run: ruff check --config qa/ruff.toml extract-core
+        run: cd extract-core && uv run ruff check
 
   tests-core:
     runs-on: ubuntu-latest
-    env:
-      PYTHON_VERSION: 3.13
-      ASTRAL_VERSION: 0.11.6
     steps:
       - uses: actions/checkout@v6
       - name: Setup Python project

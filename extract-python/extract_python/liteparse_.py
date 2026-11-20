@@ -158,11 +158,11 @@ class LiteParsePipeline(Pipeline):
         self, docs: Iterable[InputDoc]
     ) -> list[InputPages]:
         logger.info("computing page complexities...")
-        complexities = await self._compute_complexities(docs)
+        complexities = await self.compute_complexities(docs)
         batches = [b async for b in self._groups_from_complexities(complexities)]
         return batches
 
-    async def _compute_complexities(
+    async def compute_complexities(
         self, docs: Iterable[InputDoc]
     ) -> list[tuple[InputDoc, list["PageComplexityStats"]]]:
         docs = list(docs)
@@ -190,7 +190,7 @@ class LiteParsePipeline(Pipeline):
                     rng = _liteparse_range(batch.page_range)
                 update = {"liteparse_range": rng, "orientation": orientation}
                 update = {"metadata": update}
-                batch = tuple(safe_copy(b, update) for b in batch)
+                batch = tuple(safe_copy(b, update) for b in batch)  # noqa: PLW2901
                 groups[(rng, orientation)].extend(batch)
         complexities = [
             (doc, comps) for doc, comps in complexities if comps is not None
@@ -208,7 +208,7 @@ class LiteParsePipeline(Pipeline):
                         rng = _liteparse_range_from_pages(*batch)
                         update = {"liteparse_range": rng, "orientation": orientation}
                         update = {"metadata": update}
-                        batch = tuple(safe_copy(b, update) for b in batch)
+                        batch = tuple(safe_copy(b, update) for b in batch)  # noqa: PLW2901
                         groups[(rng, orientation)].extend(batch)
                 offset += 1
         for group in groups.values():

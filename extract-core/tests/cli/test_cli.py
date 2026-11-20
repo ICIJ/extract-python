@@ -1,6 +1,7 @@
 import pytest
-from extract_core.cli import cli_app
 from typer.testing import CliRunner
+
+from extract_core.cli import cli_app
 
 
 @pytest.fixture  # noqa: F405

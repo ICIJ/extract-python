@@ -1,7 +1,7 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 
 from icij_common.pydantic_utils import make_enum_discriminator, tagged_union
-from pydantic import Discriminator, Tag
+from pydantic import Discriminator, Field, Tag
 
 from .configs import (
     BasePipelineConfig,
@@ -59,9 +59,15 @@ except ModuleNotFoundError:
     MinerUBackend, MinerUPipelineConfig, MinerUConfig = None, None, None
 
 try:
-    from .liteparse_ import LiteParseConfig, LiteParsePipelineConfig
+    from .liteparse_ import (
+        LiteParseConfig,
+        LiteParseLayoutReason,
+        LiteParseOCRReason,
+        LiteParsePipelineConfig,
+        LiteParseRouterConfig,
+    )
 except ModuleNotFoundError:
-    LiteParsePipelineConfig, LiteParseConfig = None, None
+    LiteParsePipelineConfig, LiteParseConfig, LiteParseRouterConfig = None, None, None
 
 
 _pipeline_type_discriminator = make_enum_discriminator("pipeline", PipelineType)
@@ -77,6 +83,28 @@ def pipeline_config_discriminator(v: Any) -> str:
         return "by_size"
     return _pipeline_type_discriminator(v)
 
+
+if LiteParsePipelineConfig is not None:
+    PipelineConfigNoHybrid = PipelineConfig = Annotated[
+        tagged_union(
+            BasePipelineConfig.__subclasses__(), lambda t: t.pipeline.default.value
+        )
+        | Annotated[PipelineBySize, Tag("by_size")],
+        Discriminator(pipeline_config_discriminator),
+    ]
+
+    class HybridLiteParsePipelineConfig(BasePipelineConfig):
+        pipeline: ClassVar[PipelineType] = Field(
+            frozen=True, default=PipelineType.HYBRID_LITEPARSE
+        )
+        router: LiteParseRouterConfig = Field(default_factory=LiteParseRouterConfig)
+        liteparse: LiteParsePipelineConfig = Field(
+            default_factory=LiteParsePipelineConfig
+        )
+        advanced: PipelineConfigNoHybrid = Field(default_factory=DoclingPipelineConfig)
+
+else:
+    HybridLiteParsePipelineConfig = None
 
 PipelineConfig = Annotated[
     tagged_union(
@@ -99,7 +127,10 @@ __all__ = [
     "InputDoc",
     "InputPages",
     "LiteParseConfig",
+    "LiteParseLayoutReason",
+    "LiteParseOCRReason",
     "LiteParsePipelineConfig",
+    "LiteParseRouterConfig",
     "MarkdownDoc",
     "MarkerPipelineConfig",
     "MinerUBackend",
@@ -108,6 +139,7 @@ __all__ = [
     "OutputFormat",
     "Pages",
     "Pipeline",
+    "PipelineConfig",
     "PipelineBySize",
     "PipelineSize",
     "PipelineType",

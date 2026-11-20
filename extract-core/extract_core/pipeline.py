@@ -4,11 +4,10 @@ from pathlib import Path
 from typing import Self
 
 from icij_common.registrable import RegistrableFromConfig
-from objects import InputPages
 
 from extract_core import BasePipelineConfig
 
-from .objects import InputDoc, OutputFormat, Result
+from .objects import InputDoc, InputPages, OutputFormat, Result
 
 
 class Pipeline[C: BasePipelineConfig](RegistrableFromConfig, ABC):

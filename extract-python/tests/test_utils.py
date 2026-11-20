@@ -100,7 +100,7 @@ def test_write_pages(
         assert page == expected_content
 
 
-class TestResultBuffer(ResultBuffer):
+class _TestResultBuffer(ResultBuffer):
     @property
     def current_size(self) -> int:
         return self._current_size
@@ -123,7 +123,7 @@ def test_result_buffer_in_memory() -> None:
     max_size_bytes = sys.maxsize
     save_fn = MagicMock()
     load_fn = MagicMock()
-    buffer = TestResultBuffer(
+    buffer = _TestResultBuffer(
         max_size_bytes=max_size_bytes, save_fn=save_fn, load_fn=load_fn
     )
     doc_idx = 0
@@ -156,7 +156,7 @@ def test_result_buffer_offload_on_fs() -> None:
 
     save_fn = MagicMock(side_effect=_json_save)
     load_fn = MagicMock(side_effect=_json_load)
-    buffer = TestResultBuffer(
+    buffer = _TestResultBuffer(
         max_size_bytes=max_size_bytes, save_fn=save_fn, load_fn=load_fn
     )
     doc_idx = 0
@@ -189,7 +189,7 @@ def test_result_buffer_offload_on_fs_should_preserve_root(tmpdir: Path) -> None:
     # Given
     root = Path(tmpdir)
     max_size_bytes = 0
-    buffer = TestResultBuffer(
+    buffer = _TestResultBuffer(
         max_size_bytes=max_size_bytes, save_fn=_json_save, load_fn=_json_load, root=root
     )
     # When
@@ -206,7 +206,7 @@ def test_result_buffer_raise_for_inconsistent_state() -> None:
         doc_idx=0,
         page_range=(0, 1),
     )
-    buffer = TestResultBuffer(
+    buffer = _TestResultBuffer(
         max_size_bytes=max_size_bytes, save_fn=_json_save, load_fn=_json_load
     )
     # When/Then
