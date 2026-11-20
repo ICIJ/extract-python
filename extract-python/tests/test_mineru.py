@@ -11,8 +11,8 @@ from extract_core import (
     Pipeline,
     Status,
 )
-from extract_python import MinerUPipeline
 
+from extract_python import MinerUPipeline
 from tests import TEST_DATA_DIR
 
 

@@ -9,6 +9,7 @@ from extract_core import (
     Pipeline,
     Status,
 )
+
 from extract_python import DoclingPipeline
 from extract_python.liteparse_ import LiteParsePipeline
 

@@ -6,9 +6,10 @@ from docling.datamodel.pipeline_options import (
     ThreadedPdfPipelineOptions,
 )
 from docling.document_converter import PdfFormatOption
+from pydantic import TypeAdapter
+
 from extract_core import DoclingPipelineConfig, PipelineConfig
 from extract_core.objects import Status
-from pydantic import TypeAdapter
 
 
 def test_supported_ext_should_include_all_docling_input_formats() -> None:
