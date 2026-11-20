@@ -4,9 +4,10 @@ from tempfile import TemporaryDirectory
 import markdown2
 import pypdfium2
 from extract_core import BaseModel, OutputFormat, Pages
-from extract_python.utils import chdir
 from html2image import Html2Image
 from PIL import Image, ImageDraw
+
+from extract_python.utils import chdir
 
 _WHITE_BACKGROUND_CSS = "body {background: white;}"
 
