@@ -1,3 +1,5 @@
+from extract_core import LiteParseRouterConfig
+
 from .configs import BasePipelineConfig, Device, PipelineType
 from .objects import PipelineSize
 
@@ -12,6 +14,8 @@ def default_config(
             return _default_marker_config(size)
         case PipelineType.MINER_U:
             return _default_mineru_config(size)
+        case PipelineType.HYBRID_LITEPARSE:
+            return _default_hybrid_liteparse_config(device=device, size=size)
         case PipelineType.LITEPARSE:
             return _default_liteparse_config()
         case _:
@@ -48,6 +52,19 @@ def _default_mineru_config(size: PipelineSize) -> BasePipelineConfig:
         case _:
             raise TypeError(f"unsupported pipeline size {size}")
     return MinerUPipelineConfig(config=MinerUConfig(tier=tier))
+
+
+def _default_hybrid_liteparse_config(
+    device: Device, size: PipelineSize
+) -> BasePipelineConfig:
+    from extract_core import HybridLiteParsePipelineConfig  # noqa: PLC0415
+
+    router = LiteParseRouterConfig()
+    liteparse = _default_liteparse_config()
+    advanced = _default_docling_config(device=device, size=size)
+    return HybridLiteParsePipelineConfig(
+        device=device, router=router, liteparse=liteparse, advanced=advanced
+    )
 
 
 def _default_liteparse_config() -> BasePipelineConfig:
