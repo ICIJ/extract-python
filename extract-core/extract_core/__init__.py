@@ -1,6 +1,6 @@
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any, ClassVar, Self
 
-from icij_common.pydantic_utils import make_enum_discriminator, tagged_union
+from icij_common.pydantic_utils import make_enum_discriminator, safe_copy, tagged_union
 from pydantic import Discriminator, Field, Tag
 
 from .configs import (
@@ -102,6 +102,18 @@ if LiteParsePipelineConfig is not None:
             default_factory=LiteParsePipelineConfig
         )
         advanced: PipelineConfigNoHybrid = Field(default_factory=DoclingPipelineConfig)
+
+        @classmethod
+        def supported_exts(cls) -> set[SupportedExt]:
+            exts = set()
+            for sub_cls in BasePipelineConfig.__subclasses__():
+                exts.update(sub_cls.supported_exts())
+            return exts
+
+        def to_device(self) -> Self:
+            advanced_to_device = safe_copy(self.advanced, {"device": self.device})
+            update = {"advanced": advanced_to_device, "device": self.device}
+            return safe_copy(self, update=update)
 
 else:
     HybridLiteParsePipelineConfig = None
