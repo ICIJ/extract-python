@@ -107,6 +107,8 @@ if LiteParsePipelineConfig is not None:
         def supported_exts(cls) -> set[SupportedExt]:
             exts = set()
             for sub_cls in BasePipelineConfig.__subclasses__():
+                if sub_cls is cls:
+                    continue
                 exts.update(sub_cls.supported_exts())
             return exts
 
